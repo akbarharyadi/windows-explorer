@@ -80,6 +80,35 @@ This will start:
 - **Redis**:
   - Host: `localhost:6379`
 
+### 4. Setup Database (Backend)
+
+```bash
+cd packages/backend
+
+# 1. Generate Prisma client
+bun run prisma:generate
+
+# 2. Run migrations
+bun run prisma:migrate
+
+# 3. Seed database with sample data (13 folders, 11 files)
+bun run prisma:seed
+
+# 4. Verify database setup
+bun run test-db.ts
+```
+
+### 5. Explore Database (Optional)
+
+Open Prisma Studio untuk melihat data secara visual:
+
+```bash
+cd packages/backend
+bun run prisma:studio
+```
+
+Akses di: http://localhost:5555
+
 ## 📦 Available Scripts
 
 ### Root Level
@@ -99,6 +128,30 @@ bun run test
 
 # Clean all build artifacts and node_modules
 bun run clean
+```
+
+### Backend Package
+
+```bash
+cd packages/backend
+
+# Generate Prisma client
+bun run prisma:generate
+
+# Run migrations
+bun run prisma:migrate
+
+# Seed database
+bun run prisma:seed
+
+# Open Prisma Studio (visual database editor)
+bun run prisma:studio
+
+# Run tests
+bun test
+
+# Verify database setup
+bun run test-db.ts
 ```
 
 ### Turborepo Commands
@@ -139,18 +192,42 @@ window-explorer/
 │   ├── pre-commit            # ESLint + Prettier
 │   └── pre-push              # Run tests
 ├── packages/
-│   ├── backend/              # Backend API service
+│   ├── backend/              # Backend API service (Clean Architecture)
+│   │   ├── src/
+│   │   │   ├── domain/              # Business logic (no dependencies)
+│   │   │   │   ├── entities/        # FolderEntity, FileEntity
+│   │   │   │   ├── repositories/    # Repository interfaces (ports)
+│   │   │   │   └── errors/          # Domain errors
+│   │   │   └── infrastructure/      # External dependencies
+│   │   │       └── database/
+│   │   │           ├── prisma.ts           # Prisma client
+│   │   │           ├── seed.ts             # Database seeding
+│   │   │           └── repositories/       # Repository implementations (adapters)
+│   │   ├── tests/
+│   │   │   └── unit/                # Unit tests
+│   │   ├── prisma/
+│   │   │   ├── schema.prisma        # Database schema
+│   │   │   └── migrations/          # Database migrations
+│   │   ├── test-db.ts               # Database verification script
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── README.md
+│   ├── worker/               # Background worker service (TODO)
 │   │   └── src/
-│   ├── worker/               # Background worker service
+│   ├── frontend/             # Frontend application (TODO)
 │   │   └── src/
-│   ├── frontend/             # Frontend application
-│   │   └── src/
-│   └── shared/               # Shared types and utilities
+│   └── shared/               # Shared types and utilities ✅
 │       ├── src/
-│       │   └── index.ts
+│       │   ├── events.ts            # Event type definitions
+│       │   ├── queue.ts             # Queue configuration
+│       │   ├── eventBuilder.ts      # Event builder helpers
+│       │   ├── utils.ts             # Utility functions
+│       │   └── index.ts             # Main export
 │       ├── package.json
 │       └── tsconfig.json
+├── plan/                     # Implementation plans
 ├── docker-compose.yml        # Infrastructure services
+├── .env                      # Environment variables
 ├── package.json              # Root package.json
 ├── turbo.json                # Turborepo configuration
 ├── tsconfig.json             # TypeScript configuration
@@ -214,9 +291,9 @@ git push origin feature/your-feature-name
 Detailed implementation plans are available in the [`plan/`](./plan/) directory:
 
 - [Step 01: Setup Monorepo](./plan/01-setup-monorepo.md) ✅ **COMPLETED**
-- [Step 01.5: Shared Package - Event Types](./plan/01.5-shared-package-events.md)
-- [Step 02: Database Setup](./plan/02-database-setup.md)
-- [Step 02.5: Redis & RabbitMQ Setup](./plan/02.5-rabbitmq-clean-architecture.md)
+- [Step 01.5: Shared Package - Event Types](./plan/01.5-shared-package-events.md) ✅ **COMPLETED**
+- [Step 02: Database Setup](./plan/02-database-setup.md) ✅ **COMPLETED**
+- [Step 02.5: Redis & RabbitMQ Setup](./plan/02.5-redis-rabbitmq-setup.md)
 - [Step 03: Backend API](./plan/03-backend-api.md)
 - [Step 03.5: Worker Microservice](./plan/03.5-worker-microservice.md)
 - [Step 04: Frontend App](./plan/04-frontend-app.md)
@@ -268,5 +345,21 @@ This project is private and proprietary.
 
 ---
 
-**Status**: ✅ Step 01 Complete - Monorepo setup with Docker and Git hooks configured
-**Next Step**: Implement [Step 01.5 - Shared Package Event Types](./plan/01.5-shared-package-events.md)
+## 📊 Current Progress
+
+**Completed Steps:**
+
+- ✅ **Step 01**: Monorepo setup with Turborepo, Docker, Git hooks
+- ✅ **Step 01.5**: Shared package with event types, queue configuration, EventBuilder
+- ✅ **Step 02**: Database setup with Prisma, Clean Architecture, seed data
+
+**Current Status:**
+
+- **Backend Package**: Domain + Infrastructure layers complete
+  - 13 folders in hierarchical structure
+  - 11 files distributed across folders
+  - Repository pattern with full CRUD operations
+  - 9 unit tests (all passing)
+  - Prisma Studio running at http://localhost:5555
+
+**Next Step**: Implement [Step 03 - Backend API (Application + Presentation Layers)](./plan/03-backend-api.md)

@@ -1,0 +1,33 @@
+{
+  "name": "@window-explorer/backend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "build": "bun build src/index.ts --outdir=dist --target=bun",
+    "start": "bun run dist/index.js",
+    "test": "bun test",
+    "test:unit": "bun test --coverage",
+    "test:integration": "bun test tests/integration",
+    "lint": "eslint src/**/*.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "bun run src/infrastructure/database/seed.ts",
+    "db:push": "prisma db push",
+    "db:reset": "prisma migrate reset --force",
+    "clean": "bunx rimraf dist node_modules .turbo"
+  },
+  "dependencies": {
+    "elysia": "^1.3.3",
+    "@prisma/client": "^6.2.1",
+    "@window-explorer/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "dotenv": "^17.2.3",
+    "eslint": "^9.17.0",
+    "prisma": "^6.2.1",
+    "typescript": "^5.7.2"
+  }
+}

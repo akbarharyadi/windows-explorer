@@ -1,6 +1,6 @@
 # Window Explorer - File Management Web Application
 
-A Windows Explorer-like web application built with modern technologies and microservices architecture.
+A Windows Explorer-like web application built with modern technologies and Clean Architecture.
 
 ## 🏗️ Architecture
 
@@ -26,7 +26,7 @@ This project uses a **monorepo** structure with the following packages:
 - **ORM**: Prisma
 - **Cache**: Redis 7
 - **Message Queue**: RabbitMQ 3.13
-- **Architecture**: Hexagonal/Clean Architecture
+- **Architecture**: Clean Architecture
 
 ### Frontend
 

@@ -8,14 +8,12 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      APP_DIR: ${{ secrets.APP_DIR }}
-      DB_SERVICE: ${{ secrets.DB_SERVICE }}
-      DB_URL: ${{ secrets.DB_URL }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -28,46 +26,53 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
+          port: 22
           script_stop: true
           script: |
-            set -Eeuo pipefail
-            cd "${APP_DIR}"
+            # Jangan pakai -u agar tidak error unbound variable
+            set -Eeo pipefail
 
+            # ===============================
+            # Inject variabel dari GitHub Secrets
+            # Pastikan sudah dibuat di repo: APP_DIR, DB_SERVICE, DB_URL
+            # ===============================
+            APP_DIR="${{ secrets.APP_DIR }}"
+            DB_SERVICE="${{ secrets.DB_SERVICE }}"
+            DB_URL="${{ secrets.DB_URL }}"
+
+            # Validasi sekilas
+            [ -n "$APP_DIR" ] || { echo "APP_DIR secret is empty"; exit 1; }
+            [ -n "$DB_SERVICE" ] || { echo "DB_SERVICE secret is empty"; exit 1; }
+            [ -n "$DB_URL" ] || { echo "DB_URL secret is empty"; exit 1; }
+
+            echo "→ Switching to ${APP_DIR}"
+            cd "$APP_DIR"
+
+            echo "→ Ensure bun in PATH"
             export PATH="$HOME/.bun/bin:$PATH"
 
-            git fetch origin master
-            git reset --hard origin/master
-
-            bun install
-
-            sudo docker compose -f docker-compose.prod.yml up -d
-
-            echo "Waiting for PostgreSQL..."
-            max_attempts=30
-            attempt=1
-            until sudo docker compose -f docker-compose.prod.yml exec -T "${DB_SERVICE}" pg_isready >/dev/null 2>&1 || [ $attempt -gt $max_attempts ]; do
-              echo "Waiting... ($attempt/$max_attempts)"
-              sleep 5
-              attempt=$((attempt + 1))
-            done
-
-            cd packages/backend
-            export DATABASE_URL="${DB_URL}"
-            bun prisma generate
-            bun prisma migrate deploy
-            cd ../..
-
-            cd packages/frontend && bun run build
-            cd ../backend && bun run build
-            cd ../worker && bun run build
-            cd ../..
-
-            if ! command -v pm2 &>/dev/null; then
-              sudo npm i -g pm2
+            echo "→ Fetching latest code"
+            if [ -d .git ]; then
+              git fetch origin master
+              git reset --hard origin/master
+            else
+              echo "Repository not initialized at ${APP_DIR}"
+              exit 1
             fi
 
-            pm2 delete all || true
-            pm2 start ecosystem.config.js --update-env
-            pm2 status
-            echo "✅ Deployment done."
+            echo "→ Installing dependencies (host)"
+            bun install
+
+            # ====== Infrastructure via Docker Compose ======
+            COMPOSE_FILE="docker-compose.prod.yml"
+            echo "→ Starting infrastructure: ${COMPOSE_FILE}"
+            sudo docker compose -f "$COMPOSE_FILE" up -d
+
+            echo "→ Waiting containers to settle..."
+            sleep 10
+            sudo docker compose -f "$COMPOSE_FILE" ps
+
+            echo "→ Waiting for PostgreSQL to be ready..."
+            max_attempts=30
+            attempt=1
+            until sudo

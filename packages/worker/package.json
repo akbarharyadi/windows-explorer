@@ -1,0 +1,32 @@
+{
+  "name": "@window-explorer/worker",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "build": "bun build src/index.ts --outdir=dist --target=bun",
+    "start": "bun run dist/index.js",
+    "test": "bun test",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/integration",
+    "lint": "eslint src/**/*.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "clean": "bunx rimraf dist node_modules .turbo"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.2.1",
+    "@window-explorer/shared": "workspace:*",
+    "ioredis": "^5.4.1",
+    "amqplib": "^0.10.5"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/amqplib": "^0.10.5",
+    "typescript": "^5.7.2",
+    "eslint": "^9.17.0",
+    "prisma": "^6.2.1",
+    "dotenv": "^17.2.3"
+  }
+}

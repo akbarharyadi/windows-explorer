@@ -35,14 +35,22 @@ jobs:
             # Navigate to project in web directory
             cd /var/www/window-explorer
 
+            # Ensure bun is in PATH (add to .bashrc if needed)
+            export PATH="$HOME/.bun/bin:$PATH"
+
             # Pull latest code
             git pull origin master
 
             # Install dependencies
             bun install
 
+            # Run database migrations
+            cd packages/backend
+            npx prisma migrate deploy
+            cd ../..
+
             # Update and restart infrastructure services
-            sudo docker-compose -f docker-compose.infra.yml up -d
+            sudo docker compose -f docker-compose.infra.yml up -d
 
             # Wait for infrastructure to be ready
             sleep 15
@@ -53,7 +61,8 @@ jobs:
             cd ../worker && bun run build
             cd ../..
 
-            # Reload PM2 processes
+            # Reload PM2 processes (ensure PM2 is in PATH)
+            export PATH="$HOME/.npm-global/bin:$PATH"
             pm2 reload all
 
             echo "Deployment completed!"

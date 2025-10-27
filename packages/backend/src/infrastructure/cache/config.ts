@@ -12,6 +12,7 @@ export const CacheConfig = {
     FOLDER_BY_ID: parseInt(process.env.CACHE_TTL_FOLDER_BY_ID || '180'), // 3 minutes
     SEARCH_RESULTS: parseInt(process.env.CACHE_TTL_SEARCH || '60'), // 1 minute
     FILE_LIST: parseInt(process.env.CACHE_TTL_FILE_LIST || '120'), // 2 minutes
+    FILE_BY_ID: parseInt(process.env.CACHE_TTL_FILE_BY_ID || '180'), // 3 minutes
   },
 
   /**

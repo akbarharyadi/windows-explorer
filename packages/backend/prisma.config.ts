@@ -7,9 +7,8 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-// Load environment variables from root .env file
-// Navigate from packages/backend/ to root
-config({ path: join(__dirname, '../../.env') })
+// Load environment variables from backend .env file
+config({ path: join(__dirname, '.env') })
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',

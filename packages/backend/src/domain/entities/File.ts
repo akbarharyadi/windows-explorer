@@ -13,6 +13,8 @@ export interface FileEntity {
   size: number
   /** MIME type of the file (e.g., 'image/jpeg', 'application/pdf') */
   mimeType: string | null
+  /** Path to the stored file on disk */
+  filePath: string | null
   /** Timestamp when file was created */
   createdAt: Date
   /** Timestamp when file was last updated */

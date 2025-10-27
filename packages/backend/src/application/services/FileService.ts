@@ -5,6 +5,7 @@ import type { CachePort } from '../ports/cache.port'
 import type { EventPublisherPort } from '../ports/event-publisher.port'
 import { ValidationError } from '../../domain/errors'
 import { CacheConfig } from '../../infrastructure/cache/config'
+import { FileStorageService } from '../../infrastructure/storage/FileStorageService'
 
 /**
  * File Service - Application layer business logic
@@ -12,12 +13,17 @@ import { CacheConfig } from '../../infrastructure/cache/config'
  * Following Clean Architecture and SOLID principles
  */
 export class FileService {
+  private storageService: FileStorageService
+
   constructor(
     private fileRepository: IFileRepository,
     private folderRepository: IFolderRepository,
     private cache: CachePort,
     private eventPublisher: EventPublisherPort,
-  ) {}
+    storageService?: FileStorageService,
+  ) {
+    this.storageService = storageService || new FileStorageService()
+  }
 
   /**
    * Get all files (flat list)
@@ -115,6 +121,7 @@ export class FileService {
     folderId: string
     size?: number
     mimeType?: string
+    filePath?: string
   }): Promise<FileEntity> {
     // Validation
     if (!data.name || data.name.trim().length === 0) {
@@ -133,6 +140,7 @@ export class FileService {
       folderId: data.folderId,
       size: data.size ?? 0,
       mimeType: data.mimeType ?? null,
+      filePath: data.filePath ?? null,
     })
 
     // Invalidate relevant caches
@@ -234,6 +242,51 @@ export class FileService {
   }
 
   /**
+   * Upload a file with actual file storage
+   * Saves file to disk and creates database record
+   */
+  async uploadFile(file: File, folderId: string): Promise<FileEntity> {
+    // Validate folder exists
+    const folder = await this.folderRepository.findById(folderId)
+    if (!folder) {
+      throw new ValidationError(`Folder with id ${folderId} not found`)
+    }
+
+    // Save file to disk
+    const filePath = await this.storageService.saveFile(file, file.name)
+
+    // Create file record in database
+    return await this.createFile({
+      name: file.name,
+      folderId,
+      size: file.size,
+      mimeType: file.type,
+      filePath,
+    })
+  }
+
+  /**
+   * Get file content for download
+   */
+  async getFileContent(id: string): Promise<{ buffer: Buffer; file: FileEntity }> {
+    const file = await this.getFileById(id)
+    if (!file) {
+      throw new ValidationError(`File with id ${id} not found`)
+    }
+
+    if (!file.filePath) {
+      throw new ValidationError(`File ${id} has no stored content`)
+    }
+
+    if (!this.storageService.fileExists(file.filePath)) {
+      throw new ValidationError(`File content not found on disk for file ${id}`)
+    }
+
+    const buffer = await this.storageService.readFile(file.filePath)
+    return { buffer, file }
+  }
+
+  /**
    * Delete file
    * Invalidates relevant caches and publishes events
    */
@@ -244,7 +297,17 @@ export class FileService {
       throw new ValidationError(`File with id ${id} not found`)
     }
 
-    // Delete file
+    // Delete file from disk if it exists
+    if (file.filePath) {
+      try {
+        await this.storageService.deleteFile(file.filePath)
+      } catch (error) {
+        console.error(`Failed to delete file from disk: ${error}`)
+        // Continue with database deletion even if disk deletion fails
+      }
+    }
+
+    // Delete file from database
     await this.fileRepository.delete(id)
 
     // Invalidate all related caches

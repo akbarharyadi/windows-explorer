@@ -1,5 +1,6 @@
 import type { EventPublisherPort } from '../../application/ports/event-publisher.port'
 import { rabbitMQ, RABBITMQ_CONFIG } from './rabbitmq'
+import { RoutingKeys } from '@window-explorer/shared'
 
 /**
  * RabbitMQ publisher adapter implementing EventPublisherPort interface
@@ -98,41 +99,41 @@ export class RabbitMQEventPublisher implements EventPublisherPort {
     exchange: string
     routingKey: string
   } {
-    const { EXCHANGES, ROUTING_KEYS } = RABBITMQ_CONFIG
+    const { EXCHANGES } = RABBITMQ_CONFIG
 
-    // Map event types to exchanges and routing keys
+    // Map event types to exchanges and routing keys using shared configuration
     const routingMap: Record<string, { exchange: string; routingKey: string }> = {
       'folder.created': {
         exchange: EXCHANGES.FOLDER,
-        routingKey: ROUTING_KEYS.FOLDER_CREATED,
+        routingKey: RoutingKeys.FOLDER.CREATED,
       },
       'folder.updated': {
         exchange: EXCHANGES.FOLDER,
-        routingKey: ROUTING_KEYS.FOLDER_UPDATED,
+        routingKey: RoutingKeys.FOLDER.UPDATED,
       },
       'folder.deleted': {
         exchange: EXCHANGES.FOLDER,
-        routingKey: ROUTING_KEYS.FOLDER_DELETED,
+        routingKey: RoutingKeys.FOLDER.DELETED,
       },
       'file.created': {
         exchange: EXCHANGES.FILE,
-        routingKey: ROUTING_KEYS.FILE_CREATED,
+        routingKey: RoutingKeys.FILE.CREATED,
       },
       'file.updated': {
         exchange: EXCHANGES.FILE,
-        routingKey: ROUTING_KEYS.FILE_UPDATED,
+        routingKey: RoutingKeys.FILE.UPDATED,
       },
       'file.deleted': {
         exchange: EXCHANGES.FILE,
-        routingKey: ROUTING_KEYS.FILE_DELETED,
+        routingKey: RoutingKeys.FILE.DELETED,
       },
       'cache.invalidate': {
         exchange: EXCHANGES.CACHE,
-        routingKey: ROUTING_KEYS.CACHE_INVALIDATE,
+        routingKey: RoutingKeys.CACHE.INVALIDATE,
       },
       'search.index': {
         exchange: EXCHANGES.SEARCH,
-        routingKey: ROUTING_KEYS.SEARCH_INDEX,
+        routingKey: RoutingKeys.SEARCH.INDEX_FOLDER,
       },
     }
 

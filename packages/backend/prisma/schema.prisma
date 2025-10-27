@@ -34,6 +34,7 @@ model File {
   folderId  String   @map("folder_id")
   size      Int      @default(0) // Size in bytes
   mimeType  String?  @map("mime_type")
+  filePath  String?  @map("file_path") // Path to stored file on disk
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

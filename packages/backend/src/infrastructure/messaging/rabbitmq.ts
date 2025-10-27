@@ -2,6 +2,7 @@ import amqp from 'amqplib'
 import { config } from 'dotenv'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { Exchanges, Queues, RoutingKeys } from '@window-explorer/shared'
 
 // Load environment variables from root .env
 const __filename = fileURLToPath(import.meta.url)
@@ -15,30 +16,26 @@ const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://localhost:5672'
  */
 export const RABBITMQ_CONFIG = {
   EXCHANGES: {
-    FOLDER: 'folder.events',
-    FILE: 'file.events',
-    CACHE: 'cache.events',
-    SEARCH: 'search.events',
+    FOLDER: Exchanges.FOLDER.name,
+    FILE: Exchanges.FILE.name,
+    CACHE: Exchanges.CACHE.name,
+    SEARCH: Exchanges.SEARCH.name,
   },
   QUEUES: {
-    FOLDER_CREATED: 'folder.created',
-    FOLDER_UPDATED: 'folder.updated',
-    FOLDER_DELETED: 'folder.deleted',
-    FILE_CREATED: 'file.created',
-    FILE_UPDATED: 'file.updated',
-    FILE_DELETED: 'file.deleted',
-    CACHE_INVALIDATE: 'cache.invalidate',
-    SEARCH_INDEX: 'search.index',
+    FOLDER: Queues.FOLDER.name,
+    FILE: Queues.FILE.name,
+    CACHE: Queues.CACHE.name,
+    SEARCH: Queues.SEARCH.name,
   },
   ROUTING_KEYS: {
-    FOLDER_CREATED: 'folder.created',
-    FOLDER_UPDATED: 'folder.updated',
-    FOLDER_DELETED: 'folder.deleted',
-    FILE_CREATED: 'file.created',
-    FILE_UPDATED: 'file.updated',
-    FILE_DELETED: 'file.deleted',
-    CACHE_INVALIDATE: 'cache.invalidate',
-    SEARCH_INDEX: 'search.index',
+    FOLDER_CREATED: RoutingKeys.FOLDER.CREATED,
+    FOLDER_UPDATED: RoutingKeys.FOLDER.UPDATED,
+    FOLDER_DELETED: RoutingKeys.FOLDER.DELETED,
+    FILE_CREATED: RoutingKeys.FILE.CREATED,
+    FILE_UPDATED: RoutingKeys.FILE.UPDATED,
+    FILE_DELETED: RoutingKeys.FILE.DELETED,
+    CACHE_INVALIDATE: RoutingKeys.CACHE.INVALIDATE,
+    SEARCH_INDEX: RoutingKeys.SEARCH.INDEX_FOLDER,
   },
 }
 
@@ -122,67 +119,55 @@ export class RabbitMQConnectionManager {
       throw new Error('Channel not available')
     }
 
-    const { EXCHANGES, QUEUES, ROUTING_KEYS } = RABBITMQ_CONFIG
+    const { EXCHANGES, QUEUES } = RABBITMQ_CONFIG
 
-    // Create topic exchanges
-    await this.channel.assertExchange(EXCHANGES.FOLDER, 'topic', {
-      durable: true,
+    // Create exchanges
+    await this.channel.assertExchange(EXCHANGES.FOLDER, Exchanges.FOLDER.type, {
+      durable: Exchanges.FOLDER.options.durable,
     })
-    await this.channel.assertExchange(EXCHANGES.FILE, 'topic', { durable: true })
-    await this.channel.assertExchange(EXCHANGES.CACHE, 'topic', {
-      durable: true,
+    await this.channel.assertExchange(EXCHANGES.FILE, Exchanges.FILE.type, {
+      durable: Exchanges.FILE.options.durable,
     })
-    await this.channel.assertExchange(EXCHANGES.SEARCH, 'topic', {
-      durable: true,
+    await this.channel.assertExchange(EXCHANGES.CACHE, Exchanges.CACHE.type, {
+      durable: Exchanges.CACHE.options.durable,
+    })
+    await this.channel.assertExchange(EXCHANGES.SEARCH, Exchanges.SEARCH.type, {
+      durable: Exchanges.SEARCH.options.durable,
     })
 
-    // Create queues and bind to exchanges
-    const queueBindings = [
-      {
-        queue: QUEUES.FOLDER_CREATED,
-        exchange: EXCHANGES.FOLDER,
-        routingKey: ROUTING_KEYS.FOLDER_CREATED,
-      },
-      {
-        queue: QUEUES.FOLDER_UPDATED,
-        exchange: EXCHANGES.FOLDER,
-        routingKey: ROUTING_KEYS.FOLDER_UPDATED,
-      },
-      {
-        queue: QUEUES.FOLDER_DELETED,
-        exchange: EXCHANGES.FOLDER,
-        routingKey: ROUTING_KEYS.FOLDER_DELETED,
-      },
-      {
-        queue: QUEUES.FILE_CREATED,
-        exchange: EXCHANGES.FILE,
-        routingKey: ROUTING_KEYS.FILE_CREATED,
-      },
-      {
-        queue: QUEUES.FILE_UPDATED,
-        exchange: EXCHANGES.FILE,
-        routingKey: ROUTING_KEYS.FILE_UPDATED,
-      },
-      {
-        queue: QUEUES.FILE_DELETED,
-        exchange: EXCHANGES.FILE,
-        routingKey: ROUTING_KEYS.FILE_DELETED,
-      },
-      {
-        queue: QUEUES.CACHE_INVALIDATE,
-        exchange: EXCHANGES.CACHE,
-        routingKey: ROUTING_KEYS.CACHE_INVALIDATE,
-      },
-      {
-        queue: QUEUES.SEARCH_INDEX,
-        exchange: EXCHANGES.SEARCH,
-        routingKey: ROUTING_KEYS.SEARCH_INDEX,
-      },
-    ]
+    // Create queues
+    await this.channel.assertQueue(QUEUES.FOLDER, {
+      durable: Queues.FOLDER.options.durable,
+    })
+    await this.channel.assertQueue(QUEUES.FILE, {
+      durable: Queues.FILE.options.durable,
+    })
+    await this.channel.assertQueue(QUEUES.CACHE, {
+      durable: Queues.CACHE.options.durable,
+    })
+    await this.channel.assertQueue(QUEUES.SEARCH, {
+      durable: Queues.SEARCH.options.durable,
+    })
 
-    for (const binding of queueBindings) {
-      await this.channel.assertQueue(binding.queue, { durable: true })
-      await this.channel.bindQueue(binding.queue, binding.exchange, binding.routingKey)
+    // Bind queues to exchanges according to the shared configuration
+    // Folder queue bindings
+    for (const binding of Queues.FOLDER.bindings) {
+      await this.channel.bindQueue(QUEUES.FOLDER, binding.exchange, binding.routingKey)
+    }
+
+    // File queue bindings
+    for (const binding of Queues.FILE.bindings) {
+      await this.channel.bindQueue(QUEUES.FILE, binding.exchange, binding.routingKey)
+    }
+
+    // Cache queue bindings
+    for (const binding of Queues.CACHE.bindings) {
+      await this.channel.bindQueue(QUEUES.CACHE, binding.exchange, binding.routingKey)
+    }
+
+    // Search queue bindings
+    for (const binding of Queues.SEARCH.bindings) {
+      await this.channel.bindQueue(QUEUES.SEARCH, binding.exchange, binding.routingKey)
     }
 
     console.log('✅ RabbitMQ: Exchanges and queues setup complete')

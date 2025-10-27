@@ -78,11 +78,15 @@ export class RabbitMQEventPublisher implements EventPublisherPort {
           },
         }
 
-        channel.publish(exchange, routingKey, Buffer.from(JSON.stringify(message)), {
+        const sent = channel.publish(exchange, routingKey, Buffer.from(JSON.stringify(message)), {
           persistent: true,
           contentType: 'application/json',
           timestamp: Date.now(),
         })
+
+        if (!sent) {
+          throw new Error('Failed to publish message to RabbitMQ')
+        }
       }
 
       console.log(`📤 Published ${events.length} events in batch`)
@@ -142,6 +146,14 @@ export class RabbitMQEventPublisher implements EventPublisherPort {
       'search.index.file': {
         exchange: EXCHANGES.SEARCH,
         routingKey: RoutingKeys.SEARCH.INDEX_FILE,
+      },
+      'search.remove.folder': {
+        exchange: EXCHANGES.SEARCH,
+        routingKey: RoutingKeys.SEARCH.REMOVE_FOLDER,
+      },
+      'search.remove.file': {
+        exchange: EXCHANGES.SEARCH,
+        routingKey: RoutingKeys.SEARCH.REMOVE_FILE,
       },
     }
 

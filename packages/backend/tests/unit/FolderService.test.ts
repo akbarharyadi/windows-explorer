@@ -226,7 +226,8 @@ describe('FolderService', () => {
     it('should create folder with null parent', async () => {
       const result = await folderService.createFolder({ name: 'Test' })
 
-      expect(result).toEqual(mockFolder)
+      expect(result.folder).toEqual(mockFolder)
+      expect(result.eventId).toBeDefined()
       expect(mockFolderRepo.create).toHaveBeenCalledWith({
         name: 'Test',
         parentId: null,

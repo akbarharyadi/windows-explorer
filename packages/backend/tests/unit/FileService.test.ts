@@ -214,6 +214,7 @@ describe('FileService', () => {
         folderId: '123',
         size: 0,
         mimeType: null,
+        filePath: null,
       })
     })
 
@@ -230,6 +231,7 @@ describe('FileService', () => {
         folderId: '123',
         size: 2048,
         mimeType: 'text/plain',
+        filePath: null,
       })
     })
 
@@ -251,7 +253,7 @@ describe('FileService', () => {
       )
       expect(mockEventPublisher.publish).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'search.index',
+          type: 'search.index.file',
         }),
       )
     })
@@ -264,6 +266,7 @@ describe('FileService', () => {
         folderId: '123',
         size: 0,
         mimeType: null,
+        filePath: null,
       })
     })
   })
@@ -324,7 +327,7 @@ describe('FileService', () => {
       )
       expect(mockEventPublisher.publish).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'search.index',
+          type: 'search.index.file',
         }),
       )
     })
@@ -360,7 +363,7 @@ describe('FileService', () => {
       )
       expect(mockEventPublisher.publish).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'search.index',
+          type: 'search.remove.file',
         }),
       )
     })

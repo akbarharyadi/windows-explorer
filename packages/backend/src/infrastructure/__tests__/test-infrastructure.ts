@@ -65,17 +65,8 @@ export async function cleanupRabbitMQ(): Promise<void> {
   try {
     const channel = await rabbitMQ.getChannel()
 
-    // Purge test queues
-    const testQueues = [
-      'folder.created',
-      'folder.updated',
-      'folder.deleted',
-      'file.created',
-      'file.updated',
-      'file.deleted',
-      'cache.invalidate',
-      'search.index',
-    ]
+    // Purge actual queues (not routing keys!)
+    const testQueues = ['folder.queue', 'file.queue', 'cache.queue', 'search.queue']
 
     for (const queue of testQueues) {
       try {

@@ -328,12 +328,10 @@ export class FileService {
       },
     })
 
-    // Publish search.index event
+    // Publish search.remove.file event for removing from search index
     await this.eventPublisher.publish({
-      type: 'search.index',
+      type: 'search.remove.file',
       payload: {
-        action: 'delete',
-        type: 'file',
         id: file.id,
       },
     })

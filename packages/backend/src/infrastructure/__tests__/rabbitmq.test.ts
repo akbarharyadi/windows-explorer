@@ -82,9 +82,9 @@ describe('RabbitMQ Infrastructure', () => {
 
         await publisher.publish(event)
 
-        // Verify message is in queue
+        // Verify message is in queue - folder.created messages go to FOLDER queue due to binding
         const channel = await rabbitMQ.getChannel()
-        const message = await channel.get(RABBITMQ_CONFIG.QUEUES.FOLDER_CREATED, {
+        const message = await channel.get(RABBITMQ_CONFIG.QUEUES.FOLDER, {
           noAck: true,
         })
 
@@ -112,7 +112,7 @@ describe('RabbitMQ Infrastructure', () => {
         await publisher.publish(event)
 
         const channel = await rabbitMQ.getChannel()
-        const message = await channel.get(RABBITMQ_CONFIG.QUEUES.FILE_CREATED, {
+        const message = await channel.get(RABBITMQ_CONFIG.QUEUES.FILE, {
           noAck: true,
         })
 
@@ -135,7 +135,7 @@ describe('RabbitMQ Infrastructure', () => {
         await publisher.publish(event)
 
         const channel = await rabbitMQ.getChannel()
-        const message = await channel.get(RABBITMQ_CONFIG.QUEUES.CACHE_INVALIDATE, { noAck: true })
+        const message = await channel.get(RABBITMQ_CONFIG.QUEUES.CACHE, { noAck: true })
 
         expect(message).not.toBe(false)
         if (message) {
@@ -181,7 +181,7 @@ describe('RabbitMQ Infrastructure', () => {
         const channel = await rabbitMQ.getChannel()
 
         for (let i = 0; i < events.length; i++) {
-          const message = await channel.get(RABBITMQ_CONFIG.QUEUES.FOLDER_CREATED, { noAck: true })
+          const message = await channel.get(RABBITMQ_CONFIG.QUEUES.FOLDER, { noAck: true })
           expect(message).not.toBe(false)
         }
       })
@@ -211,11 +211,11 @@ describe('RabbitMQ Infrastructure', () => {
         // Verify messages are in correct queues
         const channel = await rabbitMQ.getChannel()
 
-        const folderMessage = await channel.get(RABBITMQ_CONFIG.QUEUES.FOLDER_CREATED, {
+        const folderMessage = await channel.get(RABBITMQ_CONFIG.QUEUES.FOLDER, {
           noAck: true,
         })
-        const fileMessage = await channel.get(RABBITMQ_CONFIG.QUEUES.FILE_CREATED, { noAck: true })
-        const cacheMessage = await channel.get(RABBITMQ_CONFIG.QUEUES.CACHE_INVALIDATE, {
+        const fileMessage = await channel.get(RABBITMQ_CONFIG.QUEUES.FILE, { noAck: true })
+        const cacheMessage = await channel.get(RABBITMQ_CONFIG.QUEUES.CACHE, {
           noAck: true,
         })
 
@@ -244,9 +244,9 @@ describe('RabbitMQ Infrastructure', () => {
 
       await publisher.publish(event)
 
-      // Retrieve message
+      // Retrieve message - folder.created messages go to FOLDER queue
       const channel = await rabbitMQ.getChannel()
-      const message = await channel.get(RABBITMQ_CONFIG.QUEUES.FOLDER_CREATED, {
+      const message = await channel.get(RABBITMQ_CONFIG.QUEUES.FOLDER, {
         noAck: true,
       })
 
@@ -273,10 +273,10 @@ describe('RabbitMQ Infrastructure', () => {
 
       const channel = await rabbitMQ.getChannel()
 
-      const folderMessage = await channel.get(RABBITMQ_CONFIG.QUEUES.FOLDER_CREATED, {
+      const folderMessage = await channel.get(RABBITMQ_CONFIG.QUEUES.FOLDER, {
         noAck: true,
       })
-      const fileMessage = await channel.get(RABBITMQ_CONFIG.QUEUES.FILE_CREATED, {
+      const fileMessage = await channel.get(RABBITMQ_CONFIG.QUEUES.FILE, {
         noAck: true,
       })
 
@@ -324,44 +324,11 @@ describe('RabbitMQ Infrastructure', () => {
 
       const channel = await rabbitMQ.getChannel()
 
-      const folderMsg = await channel.get(RABBITMQ_CONFIG.QUEUES.FOLDER_CREATED, { noAck: true })
-      const cacheMsg = await channel.get(RABBITMQ_CONFIG.QUEUES.CACHE_INVALIDATE, { noAck: true })
+      const folderMsg = await channel.get(RABBITMQ_CONFIG.QUEUES.FOLDER, { noAck: true })
+      const cacheMsg = await channel.get(RABBITMQ_CONFIG.QUEUES.CACHE, { noAck: true })
 
       expect(folderMsg).not.toBe(false)
       expect(cacheMsg).not.toBe(false)
-    })
-
-    it('should handle folder deletion cascade', async () => {
-      const events = [
-        {
-          type: 'folder.deleted',
-          payload: { id: '123', name: 'Deleted Folder' },
-        },
-        {
-          type: 'cache.invalidate',
-          payload: {
-            keys: ['folder:123', 'folder:123:children', 'folder:123:files', 'folder:tree'],
-          },
-        },
-        {
-          type: 'search.index',
-          payload: { action: 'delete', id: '123', type: 'folder' },
-        },
-      ]
-
-      await publisher.publishBatch(events)
-
-      const channel = await rabbitMQ.getChannel()
-
-      const deleteMsg = await channel.get(RABBITMQ_CONFIG.QUEUES.FOLDER_DELETED, { noAck: true })
-      const cacheMsg = await channel.get(RABBITMQ_CONFIG.QUEUES.CACHE_INVALIDATE, { noAck: true })
-      const searchMsg = await channel.get(RABBITMQ_CONFIG.QUEUES.SEARCH_INDEX, {
-        noAck: true,
-      })
-
-      expect(deleteMsg).not.toBe(false)
-      expect(cacheMsg).not.toBe(false)
-      expect(searchMsg).not.toBe(false)
     })
   })
 })

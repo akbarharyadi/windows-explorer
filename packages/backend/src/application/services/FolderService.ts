@@ -145,7 +145,10 @@ export class FolderService {
    * Invalidates relevant caches and publishes events
    * Returns folder with eventId for tracking async processing
    */
-  async createFolder(data: { name: string; parentId?: string | null }): Promise<{ folder: FolderEntity; eventId: string }> {
+  async createFolder(data: {
+    name: string
+    parentId?: string | null
+  }): Promise<{ folder: FolderEntity; eventId: string }> {
     // Validation
     if (!data.name || data.name.trim().length === 0) {
       throw new ValidationError('Folder name cannot be empty')
@@ -188,7 +191,7 @@ export class FolderService {
         parentId: folder.parentId,
       },
       metadata: {
-        eventId,  // Include event ID for worker to track
+        eventId, // Include event ID for worker to track
         timestamp: new Date().toISOString(),
       },
     })
@@ -277,6 +280,14 @@ export class FolderService {
       },
       metadata: {
         timestamp: new Date().toISOString(),
+      },
+    })
+
+    // Publish search.remove.folder event for removing from search index
+    await this.eventPublisher.publish({
+      type: 'search.remove.folder',
+      payload: {
+        id: folder.id,
       },
     })
   }

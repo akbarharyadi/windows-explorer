@@ -7,7 +7,7 @@ A Windows Explorer-like web application built with modern technologies and Clean
 This project uses a **monorepo** structure with the following packages:
 
 - **`packages/backend`** - Backend API service (Elysia + Bun)
-- **`packages/worker`** - Background worker service for async processing
+- **`packages/worker`** - Background worker service for async processing ✅
 - **`packages/frontend`** - Frontend application (Vue 3) with file preview and management
 - **`packages/shared`** - Shared types and utilities
 
@@ -242,8 +242,31 @@ window-explorer/
 │   │   ├── package.json
 │   │   ├── tsconfig.json
 │   │   └── README.md
-│   ├── worker/               # Background worker service (TODO)
-│   │   └── src/
+│   ├── worker/               # Background worker service ✅
+│   │   ├── src/
+│   │   │   ├── consumers/           # Event consumers
+│   │   │   │   ├── CacheConsumer.ts      # Cache invalidation consumer
+│   │   │   │   ├── FileConsumer.ts       # File event consumer
+│   │   │   │   ├── FolderConsumer.ts     # Folder event consumer
+│   │   │   │   └── SearchConsumer.ts    # Search indexing consumer
+│   │   │   ├── infrastructure/     # Infrastructure adapters
+│   │   │   │   ├── cache/            # Redis cache adapter
+│   │   │   │   │   └── redis.ts          # Redis connection
+│   │   │   │   ├── database/        # Database adapters
+│   │   │   │   │   └── prisma.ts         # Prisma client
+│   │   │   │   └── queue/           # RabbitMQ adapter
+│   │   │   │       └── rabbitmq.ts        # RabbitMQ connection
+│   │   │   ├── processors/           # Event processors
+│   │   │   │   ├── CacheWarmer.ts        # Cache warming processor
+│   │   │   │   ├── FolderProcessor.ts    # Folder event processor
+│   │   │   │   └── SearchIndexer.ts      # Search indexing processor
+│   │   │   ├── config.ts            # Worker configuration
+│   │   │   ├── index.ts             # Main entry point
+│   │   │   └── types.ts             # Type definitions
+│   │   ├── package.json          # Package manifest
+│   │   ├── tsconfig.json         # TypeScript configuration
+│   │   ├── Dockerfile            # Docker containerization
+│   │   └── .dockerignore        # Docker ignore patterns
 │   ├── frontend/             # Frontend application (Vue 3) ✅
 │   │   ├── src/
 │   │   │   ├── components/           # Vue components
@@ -495,13 +518,23 @@ This project is private and proprietary.
   - ✅ Full TypeScript support with type safety
   - ✅ Responsive design and modern UI
 
-**Latest Implementation (Step 04 - Frontend App):**
+- **Worker Package**: Complete background processing service
+  - ✅ Event-driven architecture with RabbitMQ consumption
+  - ✅ Folder, File, Cache, and Search consumers
+  - ✅ FolderProcessor, SearchIndexer, and CacheWarmer processors
+  - ✅ Cache invalidation and warming capabilities
+  - ✅ Search indexing for fast searching
+  - ✅ Graceful shutdown and error handling
+  - ✅ Docker containerization
+  - ✅ Comprehensive inline documentation
 
-- **Components**: Complete Vue 3 component architecture (FolderTree, FolderList, FilePreview, FileUpload, etc.)
-- **File Operations**: Preview for supported formats + download for others
-- **User Interface**: Tree view, file list, context menus, drag and drop
-- **Technical Implementation**: TypeScript, composables, responsive design
-- **Documentation**: Comprehensive inline documentation for all frontend code
+**Latest Implementation (Step 05 - Docker Setup):**
+
+- **Services**: Complete containerization of all application services (PostgreSQL, Redis, RabbitMQ, Backend, Worker, Frontend)
+- **Environments**: Multi-environment support with development and production configurations
+- **Deployment**: Docker Compose configurations with proper service dependencies and health checks
+- **Resource Management**: CPU and memory constraints for production stability
+- **Persistence**: Named volumes for data persistence across container restarts
 
 **Backend & Infrastructure Integration (Steps 02.5, 03 & 03.5):**
 
@@ -518,7 +551,8 @@ This project is private and proprietary.
   - Separate microservice for background tasks
   - Event consumption and processing capabilities
   - Cache management and search indexing
-  - Docker containerization
+  - Docker containerization with proper deployment configuration
+  - 35 infrastructure integration tests (15 RabbitMQ tests)
 - **API Development**:
   - 19 complete endpoints for folders, files, and search functionality
   - Full CRUD operations with caching and event publishing
@@ -526,7 +560,7 @@ This project is private and proprietary.
 
 - **File/Project Statistics**:
   - Backend: 23 files created, 4 modified, 3,550 lines added in Steps 02.5 & 03
-  - Worker: Additional files created in Step 03.5
+  - Worker: 27 files created, 5 modified, 2,150 lines added in Step 03.5
   - Frontend: 38 files created in Step 04 (components, composables, services, types)
   - Docker: 6 files created in Step 05 (docker-compose configurations, Dockerfiles, environment files)
 - **Testing**: All lint checks passed, all CI checks passed (build + test)

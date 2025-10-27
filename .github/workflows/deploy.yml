@@ -45,20 +45,20 @@ jobs:
             bun install
 
             # Update and restart infrastructure services
-            sudo docker compose -f docker compose.yml up -d
+            sudo docker compose -f docker-compose.yml up -d
 
             # Wait for infrastructure to be ready (especially database)
             echo "Waiting for infrastructure to be ready..."
             sleep 30
 
             # Check if infrastructure services are running
-            sudo docker compose -f docker compose.yml ps
+            sudo docker compose -f docker-compose.yml ps
 
             # Wait for PostgreSQL to be ready (retry mechanism)
             echo "Waiting for PostgreSQL to be ready..."
             max_attempts=30
             attempt=1
-            until sudo docker compose -f docker compose.yml exec postgres pg_isready > /dev/null 2>&1 || [ $attempt -gt $max_attempts ]; do
+            until sudo docker compose -f docker-compose.yml exec postgres pg_isready > /dev/null 2>&1 || [ $attempt -gt $max_attempts ]; do
               echo "Waiting for PostgreSQL... (attempt $attempt/$max_attempts)"
               sleep 5
               attempt=$((attempt + 1))
@@ -75,7 +75,7 @@ jobs:
             bun prisma generate
             cd ../..
 
-            # Run database migrations - using the same credentials as defined in the docker compose
+            # Run database migrations - using the same credentials as defined in the docker-compose
             cd packages/backend
             export DATABASE_URL="postgresql://window-explorer:window-explorer_password@localhost:5432/window-explorer_db?schema=public"
             bun prisma migrate deploy

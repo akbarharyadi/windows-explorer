@@ -44,6 +44,32 @@ jobs:
             # Install dependencies
             bun install
 
+            # Update and restart infrastructure services
+            sudo docker compose -f docker-compose.infra.yml up -d
+
+            # Wait for infrastructure to be ready (especially database)
+            echo "Waiting for infrastructure to be ready..."
+            sleep 20
+
+            # Check if infrastructure services are running
+            sudo docker compose -f docker-compose.infra.yml ps
+
+            # Wait for PostgreSQL to be ready (retry mechanism)
+            echo "Waiting for PostgreSQL to be ready..."
+            max_attempts=30
+            attempt=1
+            until sudo docker compose -f docker-compose.infra.yml exec postgres pg_isready > /dev/null 2>&1 || [ $attempt -gt $max_attempts ]; do
+              echo "Waiting for PostgreSQL... (attempt $attempt/$max_attempts)"
+              sleep 5
+              attempt=$((attempt + 1))
+            done
+
+            if [ $attempt -gt $max_attempts ]; then
+              echo "PostgreSQL is not ready after $max_attempts attempts. Exiting."
+              exit 1
+            fi
+            echo "PostgreSQL is ready!"
+
             # Generate Prisma client
             cd packages/backend
             bun prisma generate
@@ -53,16 +79,6 @@ jobs:
             cd packages/backend
             bun prisma migrate deploy
             cd ../..
-
-            # Update and restart infrastructure services
-            sudo docker compose -f docker-compose.infra.yml up -d
-
-            # Wait for infrastructure to be ready (especially database)
-            echo "Waiting for infrastructure to be ready..."
-            sleep 30
-
-            # Check if infrastructure services are running
-            sudo docker compose -f docker-compose.infra.yml ps
 
             # Build packages
             cd packages/frontend && bun run build

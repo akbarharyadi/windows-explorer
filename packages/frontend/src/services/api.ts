@@ -1,9 +1,9 @@
 /**
  * API service module for the Window Explorer frontend application
- * 
+ *
  * This module provides a centralized way to interact with the backend API,
  * handling requests, responses, and error handling consistently across the application.
- * 
+ *
  * @module api
  */
 
@@ -14,7 +14,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 /**
  * Generic function to make API requests with error handling
- * 
+ *
  * @template T - Type of the expected response data
  * @param endpoint - The API endpoint to call (e.g., '/api/v1/folders/tree')
  * @returns Promise resolving to the response data
@@ -38,10 +38,10 @@ async function fetchApi<T>(endpoint: string): Promise<T> {
 
 /**
  * Function to make API requests with progress tracking (used for file uploads)
- * 
+ *
  * This function uses XMLHttpRequest instead of fetch to allow progress tracking
  * during file uploads.
- * 
+ *
  * @template T - Type of the expected response data
  * @param endpoint - The API endpoint to call
  * @param options - Request options including method, headers, and body
@@ -51,19 +51,32 @@ async function fetchApi<T>(endpoint: string): Promise<T> {
  */
 function fetchApiWithProgress<T>(
   endpoint: string,
-  options: RequestInit,
-  onProgress?: (progress: number) => void
+  options: {
+    method?: string
+    headers?: Record<string, string | undefined>
+    body?:
+      | Document
+      | Blob
+      | ArrayBufferView
+      | ArrayBuffer
+      | FormData
+      | URLSearchParams
+      | ReadableStream<Uint8Array>
+      | string
+      | null
+  },
+  onProgress?: (progress: number) => void,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
-    
+
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable && onProgress) {
         const progress = Math.round((e.loaded / e.total) * 100)
         onProgress(progress)
       }
     })
-    
+
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         const response = JSON.parse(xhr.responseText) as ApiResponse<T>
@@ -76,33 +89,33 @@ function fetchApiWithProgress<T>(
         reject(new Error(`Upload failed with status: ${xhr.status}`))
       }
     })
-    
+
     xhr.addEventListener('error', () => {
       reject(new Error('Upload request failed'))
     })
-    
+
     xhr.open('POST', `${API_BASE_URL}${endpoint}`)
-    
+
     // Add headers if provided in options
     if (options.headers) {
       Object.entries(options.headers).forEach(([key, value]) => {
         xhr.setRequestHeader(key, value as string)
       })
     }
-    
+
     xhr.send(options.body)
   })
 }
 
 /**
  * API client object providing methods for all backend interactions
- * 
+ *
  * This includes methods for folder operations, file operations, search, and item management.
  */
 export const api = {
   /**
    * Retrieves the complete folder tree structure from the backend
-   * 
+   *
    * @returns Promise resolving to an array of root-level FolderNode objects
    */
   async getFolderTree(): Promise<FolderNode[]> {
@@ -111,7 +124,7 @@ export const api = {
 
   /**
    * Gets the children (folders and files) of a specific folder
-   * 
+   *
    * @param folderId - The ID of the parent folder
    * @returns Promise resolving to FolderChildren object containing subfolders and files
    */
@@ -121,7 +134,7 @@ export const api = {
 
   /**
    * Searches for folders and files that match the given query
-   * 
+   *
    * @param query - The search term to look for
    * @returns Promise resolving to SearchResults object containing matching folders and files
    */
@@ -132,11 +145,14 @@ export const api = {
 
   /**
    * Creates a new folder
-   * 
+   *
    * @param folderData - Object containing the folder name and parent ID
    * @returns Promise resolving to the created FolderNode object
    */
-  async createFolder(folderData: { name: string; parentId: string | null }): Promise<FolderNode> {
+  async createFolder(folderData: {
+    name: string
+    parentId: string | null
+  }): Promise<{ folder: FolderNode; eventId: string }> {
     const response = await fetch(`${API_BASE_URL}/api/v1/folders`, {
       method: 'POST',
       headers: {
@@ -149,7 +165,7 @@ export const api = {
       throw new Error(`Failed to create folder: ${response.statusText}`)
     }
 
-    const data: ApiResponse<FolderNode> = await response.json()
+    const data: ApiResponse<{ folder: FolderNode; eventId: string }> = await response.json()
     if (!data.success || !data.data) {
       throw new Error(data.message || 'Failed to create folder')
     }
@@ -159,39 +175,57 @@ export const api = {
 
   /**
    * Uploads a file to a specified folder
-   * 
+   *
    * @param file - The File object to upload
    * @param folderId - The ID of the folder to upload to
    * @param onProgress - Optional callback to track upload progress (0-100%)
    * @returns Promise resolving to the created file object from the backend
    */
-  async uploadFile(file: File, folderId: string, onProgress?: (progress: number) => void): Promise<{ id: string; name: string; size: number; folderId: string; mimeType: string | null; createdAt: Date; updatedAt: Date }> {
+  async uploadFile(
+    file: File,
+    folderId: string,
+    onProgress?: (progress: number) => void,
+  ): Promise<{
+    id: string
+    name: string
+    size: number
+    folderId: string
+    mimeType: string | null
+    createdAt: Date
+    updatedAt: Date
+  }> {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('folderId', folderId)
 
-    return fetchApiWithProgress<{ id: string; name: string; size: number; folderId: string; mimeType: string | null; createdAt: Date; updatedAt: Date }>(
+    return fetchApiWithProgress<{
+      id: string
+      name: string
+      size: number
+      folderId: string
+      mimeType: string | null
+      createdAt: Date
+      updatedAt: Date
+    }>(
       '/api/v1/files/upload',
       {
         method: 'POST',
         body: formData,
       },
-      onProgress
+      onProgress,
     )
   },
 
   /**
    * Deletes a folder or file
-   * 
+   *
    * @param id - The ID of the item to delete
    * @param type - The type of item to delete ('folder' or 'file')
    * @returns Promise resolving to true if successful
    */
   async deleteItem(id: string, type: 'folder' | 'file'): Promise<boolean> {
-    const endpoint = type === 'folder' 
-      ? `/api/v1/folders/${id}` 
-      : `/api/v1/files/${id}`
-    
+    const endpoint = type === 'folder' ? `/api/v1/folders/${id}` : `/api/v1/files/${id}`
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'DELETE',
     })
@@ -206,21 +240,15 @@ export const api = {
 
   /**
    * Moves a folder or file to a new parent location
-   * 
+   *
    * @param id - The ID of the item to move
    * @param type - The type of item to move ('folder' or 'file')
    * @param newParentId - The ID of the new parent folder
    * @returns Promise resolving to true if successful
    */
-  async moveItem(
-    id: string, 
-    type: 'folder' | 'file', 
-    newParentId: string
-  ): Promise<boolean> {
-    const endpoint = type === 'folder' 
-      ? `/api/v1/folders/${id}/move` 
-      : `/api/v1/files/${id}/move`
-    
+  async moveItem(id: string, type: 'folder' | 'file', newParentId: string): Promise<boolean> {
+    const endpoint = type === 'folder' ? `/api/v1/folders/${id}/move` : `/api/v1/files/${id}/move`
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'PATCH',
       headers: {

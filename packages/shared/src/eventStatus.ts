@@ -8,10 +8,10 @@ import { z } from 'zod'
  * Status of an event in the async processing pipeline
  */
 export enum EventStatus {
-  PENDING = 'pending',       // Published, waiting for worker to pick up
+  PENDING = 'pending', // Published, waiting for worker to pick up
   PROCESSING = 'processing', // Worker is currently processing
-  COMPLETED = 'completed',   // Successfully processed
-  FAILED = 'failed',         // Processing failed
+  COMPLETED = 'completed', // Successfully processed
+  FAILED = 'failed', // Processing failed
 }
 
 /**
@@ -22,9 +22,9 @@ export interface EventTracker {
   eventId: string
   eventType: string
   status: EventStatus
-  entityId?: string          // Created resource ID (if applicable)
-  error?: string             // Error message if failed
-  metadata?: Record<string, any>
+  entityId?: string // Created resource ID (if applicable)
+  error?: string // Error message if failed
+  metadata?: Record<string, unknown>
   createdAt: Date
   updatedAt: Date
   completedAt?: Date
@@ -54,7 +54,7 @@ export const EventTrackerSchema = z.object({
   status: EventStatusSchema,
   entityId: z.string().uuid().optional(),
   error: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
   completedAt: z.date().optional(),

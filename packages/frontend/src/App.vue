@@ -129,7 +129,7 @@ import { useEventStatus } from './composables/useEventStatus'
 import { useNotification } from './composables/useNotification'
 import type { FolderNode, FileItem, ContextMenuItem } from './types'
 import type { EventStatusUpdate } from '@window-explorer/shared'
-import { getStatusIcon, getStatusMessage } from '@window-explorer/shared'
+import { EventStatus, getStatusIcon, getStatusMessage } from '@window-explorer/shared'
 import { api } from './services/api'
 
 // Use folder composable for state and operations
@@ -334,15 +334,15 @@ async function createNewFolder(name: string) {
       console.log(`Event ${eventId} status:`, statusUpdate.status)
 
       // Handle status updates
-      if (statusUpdate.status === 'completed') {
+      if (statusUpdate.status === EventStatus.COMPLETED) {
         // Show success notification
-        success(`Folder "${folder.name}" created successfully! ${getStatusIcon('completed')}`)
+        success(`Folder "${folder.name}" created successfully! ${getStatusIcon(EventStatus.COMPLETED)}`)
 
         // Refresh folder tree to ensure everything is synced
         setTimeout(() => {
           loadFolderTree()
         }, 500)
-      } else if (statusUpdate.status === 'failed') {
+      } else if (statusUpdate.status === EventStatus.FAILED) {
         // Show error notification
         const errorMsg = statusUpdate.error || 'Unknown error'
         notifyError(`Failed to create folder "${folder.name}": ${errorMsg}`)
@@ -353,7 +353,7 @@ async function createNewFolder(name: string) {
     showCreateFolderModal.value = false
 
     // Show initial pending notification
-    success(`Creating folder "${folder.name}"... ${getStatusIcon('pending')}`, 2000)
+    success(`Creating folder "${folder.name}"... ${getStatusIcon(EventStatus.PENDING)}`, 2000)
 
   } catch (err) {
     console.error('Error creating folder:', err)

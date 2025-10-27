@@ -1,4 +1,4 @@
-import {
+import type {
   BaseEvent,
   FolderCreatedEvent,
   FolderUpdatedEvent,
@@ -15,6 +15,8 @@ import {
   SearchIndexFileEvent,
   SearchRemoveEvent,
   SearchRebuildIndexEvent,
+} from './events'
+import {
   FolderEventType,
   FileEventType,
   CacheEventType,

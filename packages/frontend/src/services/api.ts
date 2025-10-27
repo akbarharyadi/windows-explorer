@@ -54,16 +54,7 @@ function fetchApiWithProgress<T>(
   options: {
     method?: string
     headers?: Record<string, string | undefined>
-    body?:
-      | Document
-      | Blob
-      | ArrayBufferView
-      | ArrayBuffer
-      | FormData
-      | URLSearchParams
-      | ReadableStream<Uint8Array>
-      | string
-      | null
+    body?: Document | globalThis.XMLHttpRequestBodyInit | null
   },
   onProgress?: (progress: number) => void,
 ): Promise<T> {
@@ -99,11 +90,11 @@ function fetchApiWithProgress<T>(
     // Add headers if provided in options
     if (options.headers) {
       Object.entries(options.headers).forEach(([key, value]) => {
-        xhr.setRequestHeader(key, value as string)
+        if (value != null) xhr.setRequestHeader(key, value)
       })
     }
 
-    xhr.send(options.body)
+    xhr.send(options.body as Document | globalThis.XMLHttpRequestBodyInit | null)
   })
 }
 

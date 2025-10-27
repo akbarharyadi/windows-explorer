@@ -45,29 +45,39 @@ jobs:
             bun install
 
             # Update and restart infrastructure services
-            sudo docker compose -f docker-compose.infra.yml up -d
+            sudo docker-compose -f docker-compose.yml up -d
 
             # Wait for infrastructure to be ready (especially database)
             echo "Waiting for infrastructure to be ready..."
             sleep 30
 
             # Check if infrastructure services are running
-            sudo docker compose -f docker-compose.infra.yml ps
+            sudo docker-compose -f docker-compose.yml ps
 
-            # Since pg_isready was successful but Prisma still can't connect,
-            # let's add a wait after infrastructure before running migrations
-            echo "Waiting additional time for database to be fully ready..."
-            sleep 20
+            # Wait for PostgreSQL to be ready (retry mechanism)
+            echo "Waiting for PostgreSQL to be ready..."
+            max_attempts=30
+            attempt=1
+            until sudo docker-compose -f docker-compose.yml exec postgres pg_isready > /dev/null 2>&1 || [ $attempt -gt $max_attempts ]; do
+              echo "Waiting for PostgreSQL... (attempt $attempt/$max_attempts)"
+              sleep 5
+              attempt=$((attempt + 1))
+            done
+
+            if [ $attempt -gt $max_attempts ]; then
+              echo "PostgreSQL is not ready after $max_attempts attempts. Exiting."
+              exit 1
+            fi
+            echo "PostgreSQL is ready!"
 
             # Generate Prisma client
             cd packages/backend
             bun prisma generate
             cd ../..
 
-            # Run database migrations
+            # Run database migrations - using the same credentials as defined in the docker-compose
             cd packages/backend
-            # Use DATABASE_URL from environment or default to the docker-compose service
-            export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/window-explorer_db"
+            export DATABASE_URL="postgresql://window-explorer:window-explorer_password@localhost:5432/window-explorer_db?schema=public"
             bun prisma migrate deploy
             cd ../..
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# Run tests before push
-bunx turbo run test
+# Run tests before push in CI mode to prevent watch mode
+CI=true bunx turbo run test

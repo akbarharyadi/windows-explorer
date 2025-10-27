@@ -98,7 +98,24 @@ bun run prisma:seed
 bun run test-db.ts
 ```
 
-### 5. Explore Database (Optional)
+### 5. Test Infrastructure Setup
+
+Verify Redis and RabbitMQ are working:
+
+```bash
+cd packages/backend
+
+# Run Redis integration tests (20 tests)
+bun test src/infrastructure/__tests__/redis.test.ts
+
+# Run RabbitMQ integration tests (15 tests)
+bun test src/infrastructure/__tests__/rabbitmq.test.ts
+
+# Or run all infrastructure tests (35 tests)
+bun test src/infrastructure/__tests__/
+```
+
+### 6. Explore Database (Optional)
 
 Open Prisma Studio untuk melihat data secara visual:
 
@@ -194,15 +211,28 @@ window-explorer/
 ├── packages/
 │   ├── backend/              # Backend API service (Clean Architecture)
 │   │   ├── src/
+│   │   │   ├── application/         # Application layer (use cases, ports)
+│   │   │   │   └── ports/           # Application interfaces (CachePort, EventPublisherPort)
 │   │   │   ├── domain/              # Business logic (no dependencies)
 │   │   │   │   ├── entities/        # FolderEntity, FileEntity
 │   │   │   │   ├── repositories/    # Repository interfaces (ports)
 │   │   │   │   └── errors/          # Domain errors
 │   │   │   └── infrastructure/      # External dependencies
-│   │   │       └── database/
-│   │   │           ├── prisma.ts           # Prisma client
-│   │   │           ├── seed.ts             # Database seeding
-│   │   │           └── repositories/       # Repository implementations (adapters)
+│   │   │       ├── cache/           # Redis cache implementation
+│   │   │       │   ├── config.ts           # Cache TTL & key patterns
+│   │   │       │   ├── redis.ts            # Redis connection
+│   │   │       │   └── redis.adapter.ts    # CachePort implementation
+│   │   │       ├── messaging/       # RabbitMQ messaging implementation
+│   │   │       │   ├── rabbitmq.ts         # RabbitMQ connection manager
+│   │   │       │   └── rabbitmq.publisher.ts  # EventPublisherPort implementation
+│   │   │       ├── database/
+│   │   │       │   ├── prisma.ts           # Prisma client
+│   │   │       │   ├── seed.ts             # Database seeding
+│   │   │       │   └── repositories/       # Repository implementations (adapters)
+│   │   │       └── __tests__/       # Infrastructure integration tests
+│   │   │           ├── test-infrastructure.ts  # Test utilities
+│   │   │           ├── redis.test.ts           # Redis tests (20 tests)
+│   │   │           └── rabbitmq.test.ts        # RabbitMQ tests (15 tests)
 │   │   ├── tests/
 │   │   │   └── unit/                # Unit tests
 │   │   ├── prisma/
@@ -293,7 +323,7 @@ Detailed implementation plans are available in the [`plan/`](./plan/) directory:
 - [Step 01: Setup Monorepo](./plan/01-setup-monorepo.md) ✅ **COMPLETED**
 - [Step 01.5: Shared Package - Event Types](./plan/01.5-shared-package-events.md) ✅ **COMPLETED**
 - [Step 02: Database Setup](./plan/02-database-setup.md) ✅ **COMPLETED**
-- [Step 02.5: Redis & RabbitMQ Setup](./plan/02.5-redis-rabbitmq-setup.md)
+- [Step 02.5: Redis & RabbitMQ Setup](./plan/02.5-redis-rabbitmq-setup.md) ✅ **COMPLETED**
 - [Step 03: Backend API](./plan/03-backend-api.md)
 - [Step 03.5: Worker Microservice](./plan/03.5-worker-microservice.md)
 - [Step 04: Frontend App](./plan/04-frontend-app.md)
@@ -335,6 +365,56 @@ bunx turbo run clean
 rm -rf .turbo
 ```
 
+### Redis connection issues
+
+Verify Redis is running and accessible:
+
+```bash
+# Check Redis container
+docker ps | grep redis
+
+# Test Redis connection
+docker exec window-explorer-redis redis-cli ping
+
+# View Redis logs
+docker logs window-explorer-redis
+```
+
+### RabbitMQ connection issues
+
+Verify RabbitMQ is running:
+
+```bash
+# Check RabbitMQ container
+docker ps | grep rabbitmq
+
+# Check RabbitMQ health
+docker exec window-explorer-rabbitmq rabbitmq-diagnostics ping
+
+# View RabbitMQ logs
+docker logs window-explorer-rabbitmq
+
+# Access RabbitMQ Management UI
+# Open http://localhost:15672 in browser
+# Credentials: window_explorer / window_explorer123
+```
+
+### Running infrastructure tests fails
+
+Ensure all Docker services are running:
+
+```bash
+# Check all services are healthy
+docker compose ps
+
+# Restart services if needed
+docker compose restart
+
+# Run tests after services are up
+cd packages/backend
+bun test src/infrastructure/__tests__/
+```
+
 ## 📝 License
 
 This project is private and proprietary.
@@ -352,22 +432,36 @@ This project is private and proprietary.
 - ✅ **Step 01**: Monorepo setup with Turborepo, Docker, Git hooks
 - ✅ **Step 01.5**: Shared package with event types, queue configuration, EventBuilder
 - ✅ **Step 02**: Database setup with Prisma, Clean Architecture, seed data
+- ✅ **Step 02.5**: Redis & RabbitMQ setup with Application layer ports and Infrastructure adapters
 
 **Current Status:**
 
-- **Backend Package**: Domain + Infrastructure layers complete
-  - ✅ Clean Architecture (Domain + Infrastructure layers)
+- **Backend Package**: Domain + Application + Infrastructure layers complete
+  - ✅ Clean Architecture (Domain + Application + Infrastructure layers)
   - ✅ 13 folders in hierarchical structure
   - ✅ 11 files distributed across folders
   - ✅ Repository pattern with full CRUD operations
-  - ✅ 69 tests passing (9 backend + 60 shared)
+  - ✅ Redis cache with TTL strategies
+  - ✅ RabbitMQ event publishing with topic-based routing
+  - ✅ 104 tests passing (44 backend + 60 shared)
+    - 35 infrastructure integration tests (Redis + RabbitMQ)
+    - 9 domain unit tests
   - ✅ Build system working (Turbo + Bun)
   - ✅ Comprehensive JSDoc documentation
   - ✅ Git hooks configured (pre-commit & pre-push)
 
-**Latest Commits:**
+**Latest Implementation:**
 
-- `ac5c0c0` - Step 02 implementation (20 files, +1170 lines)
-- `4766c54` - Entry point placeholder (1 file, +9 lines)
+- **Redis Infrastructure**:
+  - CachePort interface with get, set, del, delMany, clearPattern, exists
+  - RedisCacheAdapter implementing CachePort with ioredis
+  - Cache configuration with TTL strategies for different data types
+  - 20 integration tests covering all cache operations
+
+- **RabbitMQ Infrastructure**:
+  - EventPublisherPort interface with publish and publishBatch
+  - RabbitMQEventPublisher with topic-based routing
+  - 4 exchanges (folder, file, cache, search) and 8 queues
+  - 15 integration tests covering message publishing and retrieval
 
 **Next Step**: Implement [Step 03 - Backend API (Application + Presentation Layers)](./plan/03-backend-api.md)

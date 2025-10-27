@@ -44,16 +44,25 @@ jobs:
             # Install dependencies
             bun install
 
+            # Generate Prisma client
+            cd packages/backend
+            bun prisma generate
+            cd ../..
+
             # Run database migrations
             cd packages/backend
-            npx prisma migrate deploy
+            bun prisma migrate deploy
             cd ../..
 
             # Update and restart infrastructure services
             sudo docker compose -f docker-compose.infra.yml up -d
 
-            # Wait for infrastructure to be ready
-            sleep 15
+            # Wait for infrastructure to be ready (especially database)
+            echo "Waiting for infrastructure to be ready..."
+            sleep 30
+
+            # Check if infrastructure services are running
+            sudo docker compose -f docker-compose.infra.yml ps
 
             # Build packages
             cd packages/frontend && bun run build
@@ -61,8 +70,14 @@ jobs:
             cd ../worker && bun run build
             cd ../..
 
-            # Reload PM2 processes (ensure PM2 is in PATH)
+            # Ensure PM2 is in PATH and start/reload processes
             export PATH="$HOME/.npm-global/bin:$PATH"
-            pm2 reload all
+            pm2 reload all || pm2 start ecosystem.config.js
+
+            # Wait for processes to start
+            sleep 10
+
+            # Check PM2 status
+            pm2 status
 
             echo "Deployment completed!"

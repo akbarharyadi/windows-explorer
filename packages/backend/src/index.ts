@@ -5,7 +5,9 @@ import { corsMiddleware } from './presentation/middlewares/cors'
 import { folderRoutes } from './presentation/routes/folders'
 import { fileRoutes } from './presentation/routes/files'
 import { searchRoutes } from './presentation/routes/search'
+import { eventRoutes } from './presentation/routes/events'
 import { prisma } from './infrastructure/database/prisma'
+import { EventNotifier } from './infrastructure/websocket/EventNotifier'
 
 // Load environment variables
 config()
@@ -76,9 +78,13 @@ const app = new Elysia()
   .use(folderRoutes)
   .use(fileRoutes)
   .use(searchRoutes)
+  .use(eventRoutes)
 
   // Start server
   .listen(PORT)
+
+// Initialize WebSocket Event Notifier
+const eventNotifier = new EventNotifier(app.server!)
 
 // Server startup logging
 console.log('🚀 Window Explorer API Server Started')
@@ -113,12 +119,14 @@ checkDatabase()
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully')
+  await eventNotifier.close()
   await prisma.$disconnect()
   process.exit(0)
 })
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully')
+  await eventNotifier.close()
   await prisma.$disconnect()
   process.exit(0)
 })

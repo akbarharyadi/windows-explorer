@@ -11,6 +11,7 @@ import redis from '../infrastructure/cache/redis'
 import prisma from '../infrastructure/database/prisma'
 import { WorkerConfig } from '../config'
 import { FolderCreatedPayload, FolderUpdatedPayload, FolderDeletedPayload } from '../types'
+import { EventStatus, EventStatusUpdate } from '@window-explorer/shared'
 
 /**
  * Processor class that handles folder-related cache operations
@@ -27,23 +28,52 @@ export class FolderProcessor {
    * to ensure the new folder appears in the cache.
    *
    * @param payload The folder data from the event
+   * @param metadata Event metadata containing eventId for tracking
    * @returns Promise that resolves when processing is complete
    */
-  async handleFolderCreated(payload: FolderCreatedPayload): Promise<void> {
-    console.log(`🆕 Processing folder created: ${payload.folderId}`)
+  async handleFolderCreated(payload: FolderCreatedPayload, metadata?: any): Promise<void> {
+    const eventId = metadata?.eventId
 
-    // Invalidate folder tree cache to include the new folder
-    await redis.del('folder:tree')
+    try {
+      // Update status to processing
+      if (eventId) {
+        await this.updateEventStatus(eventId, EventStatus.PROCESSING)
+      }
 
-    // Invalidate parent's children cache if the new folder has a parent
-    if (payload.parentId) {
-      await redis.del(`folder:${payload.parentId}:children`)
+      console.log(`🆕 Processing folder created: ${payload.folderId}`)
+
+      // Invalidate folder tree cache to include the new folder
+      await redis.del('folder:tree')
+
+      // Invalidate parent's children cache if the new folder has a parent
+      if (payload.parentId) {
+        await redis.del(`folder:${payload.parentId}:children`)
+      }
+
+      // Warm up folder tree cache with the latest data
+      await this.warmFolderTreeCache()
+
+      // Update status to completed
+      if (eventId) {
+        await this.updateEventStatus(eventId, EventStatus.COMPLETED, payload.folderId)
+      }
+
+      console.log(`✅ Folder created processing complete`)
+    } catch (error) {
+      console.error('❌ Error processing folder creation:', error)
+
+      // Update status to failed
+      if (eventId) {
+        await this.updateEventStatus(
+          eventId,
+          EventStatus.FAILED,
+          undefined,
+          error instanceof Error ? error.message : 'Unknown error'
+        )
+      }
+
+      throw error
     }
-
-    // Warm up folder tree cache with the latest data
-    await this.warmFolderTreeCache()
-
-    console.log(`✅ Folder created processing complete`)
   }
 
   /**
@@ -166,5 +196,42 @@ export class FolderProcessor {
     } catch (error) {
       console.error('❌ Error warming folder tree cache:', error)
     }
+  }
+
+  /**
+   * Update event status in database and publish to Redis for WebSocket broadcast
+   * @private
+   */
+  private async updateEventStatus(
+    eventId: string,
+    status: EventStatus,
+    entityId?: string,
+    error?: string
+  ) {
+    const isTerminal = status === EventStatus.COMPLETED || status === EventStatus.FAILED
+
+    // Update database
+    await prisma.eventStatus.update({
+      where: { eventId },
+      data: {
+        status,
+        entityId,
+        error,
+        completedAt: isTerminal ? new Date() : undefined,
+      },
+    })
+
+    // Publish to Redis for WebSocket broadcast
+    const update: EventStatusUpdate = {
+      eventId,
+      status,
+      entityId,
+      error,
+      timestamp: new Date(),
+    }
+
+    await redis.publish('event:status:updates', JSON.stringify(update))
+
+    console.log(`📡 Published event status update: ${eventId} -> ${status}`)
   }
 }

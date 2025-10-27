@@ -5,6 +5,9 @@ import type { CachePort } from '../ports/cache.port'
 import type { EventPublisherPort } from '../ports/event-publisher.port'
 import { ValidationError } from '../../domain/errors'
 import { CacheConfig } from '../../infrastructure/cache/config'
+import { EventStatusRepository } from '../../infrastructure/tracking/EventStatusRepository'
+import { EventStatus } from '@window-explorer/shared'
+import { v4 as uuidv4 } from 'uuid'
 
 /**
  * Folder Service - Application layer business logic
@@ -12,12 +15,16 @@ import { CacheConfig } from '../../infrastructure/cache/config'
  * Following Clean Architecture and SOLID principles
  */
 export class FolderService {
+  private eventStatusRepo: EventStatusRepository
+
   constructor(
     private folderRepository: IFolderRepository,
     private fileRepository: IFileRepository,
     private cache: CachePort,
     private eventPublisher: EventPublisherPort,
-  ) {}
+  ) {
+    this.eventStatusRepo = new EventStatusRepository()
+  }
 
   /**
    * Get all folders (flat list)
@@ -136,8 +143,9 @@ export class FolderService {
   /**
    * Create a new folder
    * Invalidates relevant caches and publishes events
+   * Returns folder with eventId for tracking async processing
    */
-  async createFolder(data: { name: string; parentId?: string | null }): Promise<FolderEntity> {
+  async createFolder(data: { name: string; parentId?: string | null }): Promise<{ folder: FolderEntity; eventId: string }> {
     // Validation
     if (!data.name || data.name.trim().length === 0) {
       throw new ValidationError('Folder name cannot be empty')
@@ -157,10 +165,21 @@ export class FolderService {
       parentId: data.parentId ?? null,
     })
 
+    // Generate unique event ID for tracking
+    const eventId = uuidv4()
+
+    // Track event status in database
+    await this.eventStatusRepo.create({
+      eventId,
+      eventType: 'folder.created',
+      status: EventStatus.PENDING,
+      metadata: { folderId: folder.id },
+    })
+
     // Invalidate relevant caches
     await this.invalidateFolderCaches(folder.id, folder.parentId)
 
-    // Publish folder.created event
+    // Publish folder.created event with tracking ID
     await this.eventPublisher.publish({
       type: 'folder.created',
       payload: {
@@ -169,11 +188,13 @@ export class FolderService {
         parentId: folder.parentId,
       },
       metadata: {
+        eventId,  // Include event ID for worker to track
         timestamp: new Date().toISOString(),
       },
     })
 
-    return folder
+    // Return folder with event ID for frontend tracking
+    return { folder, eventId }
   }
 
   /**

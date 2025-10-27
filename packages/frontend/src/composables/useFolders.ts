@@ -69,18 +69,21 @@ export function useFolders() {
 
   /**
    * Creates a new folder in the specified parent folder (or at root level)
-   * 
+   *
    * Updates the folder tree structure and refreshes the UI if needed
-   * 
+   * Returns both folder and eventId for async tracking
+   *
    * @param folderName - Name of the new folder
    * @param parentId - ID of the parent folder (null for root level)
-   * @returns Promise resolving to the created FolderNode
+   * @returns Promise resolving to object with folder and eventId
    */
   async function createNewFolder(folderName: string, parentId: string | null = null) {
     try {
-      const newFolder = await api.createFolder({ name: folderName, parentId })
-      
-      // Update the tree structure to include the new folder
+      // API now returns { folder, eventId }
+      const result = await api.createFolder({ name: folderName, parentId })
+      const { folder: newFolder, eventId } = result
+
+      // Update the tree structure to include the new folder (optimistic UI)
       if (parentId) {
         // Find the parent folder in the tree and add the new folder to its children
         const addToChildren = (folders: FolderNode[]): boolean => {
@@ -101,13 +104,14 @@ export function useFolders() {
         // Add to root level if no parent
         folderTree.value.push(newFolder)
       }
-      
+
       // If the parent folder is currently selected, refresh its children
       if (selectedFolder.value?.id === parentId) {
         await selectFolder(selectedFolder.value)
       }
-      
-      return newFolder
+
+      // Return both folder and eventId for tracking
+      return { folder: newFolder, eventId }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to create folder'
       console.error('Error creating folder:', e)

@@ -51,12 +51,12 @@ export class FolderConsumer {
     console.log('👂 Starting Folder Consumer...')
 
     await rabbitmq.consume(Queues.FOLDER.name, async (message: WorkerMessage) => {
-      const { type, payload } = message
+      const { type, payload, metadata } = message
 
       switch (type) {
         case 'folder.created':
           // Process folder creation - update caches and index for search
-          await this.processor.handleFolderCreated(payload as FolderCreatedPayload)
+          await this.processor.handleFolderCreated(payload as FolderCreatedPayload, metadata)
           await this.searchIndexer.indexFolder(payload)
           break
 

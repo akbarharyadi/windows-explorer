@@ -44,3 +44,21 @@ model File {
   @@index([folderId])
   @@map("files")
 }
+
+model EventStatus {
+  id          String    @id @default(uuid())
+  eventId     String    @unique @map("event_id")
+  eventType   String    @map("event_type")
+  status      String    @default("pending") // pending, processing, completed, failed
+  entityId    String?   @map("entity_id")   // Created folder/file ID
+  error       String?
+  metadata    Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+
+  @@index([eventId])
+  @@index([status])
+  @@index([entityId])
+  @@map("event_status")
+}

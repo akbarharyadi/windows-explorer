@@ -36,3 +36,4 @@ coverage/
 *.tsbuildinfo
 
 plan/*
+packages/backend/uploads/*

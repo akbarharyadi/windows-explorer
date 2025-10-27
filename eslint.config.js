@@ -13,6 +13,7 @@ export default [
       globals: {
         ...globals.node,
         ...globals.es2022,
+        ...globals.browser,  // Add browser globals for frontend code
       },
       ecmaVersion: 2022,
       sourceType: 'module',

@@ -325,7 +325,7 @@ Detailed implementation plans are available in the [`plan/`](./plan/) directory:
 - [Step 02: Database Setup](./plan/02-database-setup.md) ✅ **COMPLETED**
 - [Step 02.5: Redis & RabbitMQ Setup](./plan/02.5-redis-rabbitmq-setup.md) ✅ **COMPLETED**
 - [Step 03: Backend API](./plan/03-backend-api.md) ✅ **COMPLETED**
-- [Step 03.5: Worker Microservice](./plan/03.5-worker-microservice.md)
+- [Step 03.5: Worker Microservice](./plan/03.5-worker-microservice.md) ✅ **COMPLETED**
 - [Step 04: Frontend App](./plan/04-frontend-app.md)
 - [Step 05: Docker Setup](./plan/05-docker-setup.md)
 - [Step 06: Testing & Deployment](./plan/06-testing-deployment.md)
@@ -453,6 +453,15 @@ This project is private and proprietary.
   - ✅ Comprehensive JSDoc documentation
   - ✅ Git hooks configured (pre-commit & pre-push)
 
+- **Worker Package**: Background processing and event consumption complete
+  - ✅ Event-driven architecture with RabbitMQ consumption
+  - ✅ Folder, File, Cache, and Search consumers
+  - ✅ FolderProcessor, SearchIndexer, and CacheWarmer processors
+  - ✅ Cache invalidation and warming capabilities
+  - ✅ Search indexing for fast searching
+  - ✅ Graceful shutdown and error handling
+  - ✅ Docker configuration for deployment
+
 **Latest Implementation (Step 03 - Backend API):**
 
 - **Services**: FolderService & FileService with integrated cache and event publishing
@@ -461,7 +470,7 @@ This project is private and proprietary.
 - **Server**: Complete Elysia server with API documentation
 - **Testing**: 58 unit tests for services, 102 tests total passing (229 assertions)
 
-**Infrastructure Integration (Step 02.5):**
+**Infrastructure & Worker Integration (Step 02.5 & 03.5):**
 
 - **Application Ports**: CachePort and EventPublisherPort interfaces
 - **Redis Infrastructure**:
@@ -472,8 +481,13 @@ This project is private and proprietary.
   - RabbitMQEventPublisher implementing EventPublisherPort
   - Topic-based routing with 4 exchanges and 8 queues
   - 35 infrastructure integration tests (15 RabbitMQ tests)
+- **Worker Service**:
+  - Separate microservice for background tasks
+  - Event consumption and processing capabilities
+  - Cache management and search indexing
+  - Docker containerization
 
-- **File/Project Statistics**: 23 files created, 4 modified, 3,550 lines added in Steps 02.5 & 03
+- **File/Project Statistics**: 23 files created, 4 modified, 3,550 lines added in Steps 02.5 & 03; additional files in Step 03.5
 - **Testing**: All lint checks passed, all CI checks passed (build + test)
 
-**Next Step**: Implement [Step 03.5 - Worker Microservice](./plan/03.5-worker-microservice.md)
+**Next Step**: Implement [Step 04 - Frontend App](./plan/04-frontend-app.md)

@@ -36,9 +36,10 @@ export function useEventStatus() {
   function connect() {
     if (socket.value?.connected) return
 
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
+    // WebSocket server runs on port 3001 (separate from API on port 3000)
+    const websocketUrl = import.meta.env.VITE_WEBSOCKET_URL || 'http://localhost:3001'
 
-    socket.value = io(backendUrl, {
+    socket.value = io(websocketUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 5,
@@ -95,7 +96,7 @@ export function useEventStatus() {
     eventId: string,
     entityType: string,
     entityName: string,
-    onUpdate: (status: EventStatusUpdate) => void
+    onUpdate: (status: EventStatusUpdate) => void,
   ) {
     // Add to tracked events
     trackedEvents.value.set(eventId, {

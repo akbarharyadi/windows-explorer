@@ -76,9 +76,12 @@
           @contextmenu="showItemContextMenu"
           @move-item="handleMoveItem"
           @create-folder="showCreateFolderModal = true"
+        />
+        <FileUpload
+          v-if="selectedFolder"
+          :current-folder-id="selectedFolder.id"
           @file-uploaded="refreshCurrentFolder"
         />
-        <FileUpload v-if="selectedFolder" :current-folder-id="selectedFolder.id" />
       </div>
     </div>
 
@@ -364,10 +367,12 @@ async function createNewFolder(name: string) {
  * Reloads the selected folder and the folder tree
  */
 async function refreshCurrentFolder() {
+  console.log('🔄 Refreshing current folder after file upload...')
   if (selectedFolder.value) {
     await selectFolder(selectedFolder.value)
   }
   await loadFolderTree()
+  console.log('✅ Folder refreshed')
 }
 </script>
 

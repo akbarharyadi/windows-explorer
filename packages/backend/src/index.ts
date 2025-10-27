@@ -83,12 +83,14 @@ const app = new Elysia()
   // Start server
   .listen(PORT)
 
-// Initialize WebSocket Event Notifier
-const eventNotifier = new EventNotifier(app.server!)
+// Initialize WebSocket Event Notifier on separate port
+// Socket.IO runs on port 3001, API on port 3000
+const eventNotifier = new EventNotifier(3001)
 
 // Server startup logging
 console.log('🚀 Window Explorer API Server Started')
-console.log(`📍 URL: http://${app.server?.hostname}:${app.server?.port}`)
+console.log(`📍 API URL: http://${app.server?.hostname}:${app.server?.port}`)
+console.log(`📍 WebSocket URL: ws://localhost:3001`)
 console.log(`🌍 Environment: ${NODE_ENV}`)
 console.log(`📦 Version: ${API_VERSION}`)
 console.log(`⚡ Runtime: Bun ${process.versions.bun}`)

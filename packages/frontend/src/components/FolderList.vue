@@ -18,59 +18,62 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading">
-      Loading contents...
-    </div>
-
-    <div v-else-if="!selectedFolder" class="empty">
-      Select a folder from the tree to view its contents
-    </div>
-
-    <div v-else-if="!hasContent" class="empty">
-      This folder is empty
-    </div>
-
-    <div v-else class="content-grid">
-      <!-- Folders -->
-      <div
-        v-for="folder in children?.folders"
-        :key="folder.id"
-        class="grid-item folder-item"
-        draggable="true"
-        @dragstart="startDrag($event, folder, 'folder')"
-        @dragover="allowDrop"
-        @drop="drop($event, folder, 'folder')"
-        @dblclick="emit('selectFolder', folder)"
-        @contextmenu="showContextMenu($event, folder, 'folder')"
-      >
-        <div class="item-icon">📁</div>
-        <div class="item-info">
-          <div class="item-name">{{ folder.name }}</div>
-          <div class="item-meta">Folder</div>
-        </div>
+    <Transition name="fade" mode="out-in">
+      <div v-if="loading" key="loading" class="loading">
+        <div class="spinner"></div>
+        <span>Loading contents...</span>
       </div>
 
-      <!-- Files -->
-      <div
-        v-for="file in children?.files"
-        :key="file.id"
-        class="grid-item file-item"
-        draggable="true"
-        @dragstart="startDrag($event, file, 'file')"
-        @dragover="allowDrop"
-        @drop="drop($event, file, 'file')"
-        @click="openFilePreview(file)"
-        @contextmenu="showContextMenu($event, file, 'file')"
-        :title="getClickAction(file)"
-      >
-        <div class="item-icon">📄</div>
-        <div class="item-info">
-          <div class="item-name">{{ file.name }}</div>
-          <div class="item-meta">{{ formatFileSize(file.size) }}</div>
+      <div v-else-if="!selectedFolder" key="no-folder" class="empty">
+        Select a folder from the tree to view its contents
+      </div>
+
+      <div v-else-if="!hasContent" key="empty" class="empty">
+        This folder is empty
+      </div>
+
+      <div v-else key="content" class="content-grid">
+        <!-- Folders -->
+        <div
+          v-for="folder in children?.folders"
+          :key="folder.id"
+          class="grid-item folder-item"
+          draggable="true"
+          @dragstart="startDrag($event, folder, 'folder')"
+          @dragover="allowDrop"
+          @drop="drop($event, folder, 'folder')"
+          @dblclick="emit('selectFolder', folder)"
+          @contextmenu="showContextMenu($event, folder, 'folder')"
+        >
+          <div class="item-icon">📁</div>
+          <div class="item-info">
+            <div class="item-name">{{ folder.name }}</div>
+            <div class="item-meta">Folder</div>
+          </div>
+        </div>
+
+        <!-- Files -->
+        <div
+          v-for="file in children?.files"
+          :key="file.id"
+          class="grid-item file-item"
+          draggable="true"
+          @dragstart="startDrag($event, file, 'file')"
+          @dragover="allowDrop"
+          @drop="drop($event, file, 'file')"
+          @click="openFilePreview(file)"
+          @contextmenu="showContextMenu($event, file, 'file')"
+          :title="getClickAction(file)"
+        >
+          <div class="item-icon">📄</div>
+          <div class="item-info">
+            <div class="item-name">{{ file.name }}</div>
+            <div class="item-meta">{{ formatFileSize(file.size) }}</div>
+          </div>
         </div>
       </div>
-    </div>
-    
+    </Transition>
+
     <!-- File Preview Modal -->
     <FilePreview
       :show="showPreview"
@@ -411,8 +414,80 @@ async function handleFileSelect(event: Event) {
 .empty {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   color: #666;
+  gap: 12px;
+}
+
+/* Spinner animation */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #2196f3;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Fade transition for smooth content loading */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* Smooth grid item appearance */
+.content-grid {
+  animation: fadeInUp 0.4s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stagger animation for grid items */
+.grid-item {
+  animation: fadeIn 0.3s ease backwards;
+}
+
+.grid-item:nth-child(1) { animation-delay: 0.05s; }
+.grid-item:nth-child(2) { animation-delay: 0.1s; }
+.grid-item:nth-child(3) { animation-delay: 0.15s; }
+.grid-item:nth-child(4) { animation-delay: 0.2s; }
+.grid-item:nth-child(5) { animation-delay: 0.25s; }
+.grid-item:nth-child(n+6) { animation-delay: 0.3s; }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 </style>

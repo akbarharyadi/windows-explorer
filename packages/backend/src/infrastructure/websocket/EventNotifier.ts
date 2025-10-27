@@ -1,23 +1,28 @@
 import { Server as SocketIOServer } from 'socket.io'
-import type { Server } from 'bun'
+import { createServer } from 'http'
 import redis from '../cache/redis'
 import { EventStatusUpdate } from '@window-explorer/shared'
 
 /**
  * EventNotifier - WebSocket server for real-time event status updates
- * Uses Socket.IO for bi-directional communication
+ * Uses Socket.IO with HTTP server for bi-directional communication
  * Subscribes to Redis pub/sub for worker status updates
  */
 export class EventNotifier {
   private io: SocketIOServer
+  private httpServer: ReturnType<typeof createServer>
   private redisSubscriber: typeof redis
 
-  constructor(bunServer: Server) {
-    // Initialize Socket.IO with Bun server
-    this.io = new SocketIOServer(bunServer, {
+  constructor(port: number = 3001) {
+    // Create HTTP server for Socket.IO
+    this.httpServer = createServer()
+
+    // Initialize Socket.IO
+    this.io = new SocketIOServer(this.httpServer, {
       cors: {
-        origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+        origin: process.env.FRONTEND_URL || 'http://localhost:5173',
         credentials: true,
+        methods: ['GET', 'POST'],
       },
       // Optimize for real-time updates
       transports: ['websocket', 'polling'],
@@ -25,8 +30,15 @@ export class EventNotifier {
       pingInterval: 25000,
     })
 
-    // Create Redis subscriber client
-    this.redisSubscriber = redis.duplicate()
+    // Start HTTP server
+    this.httpServer.listen(port, () => {
+      console.log(`✅ WebSocket server listening on port ${port}`)
+    })
+
+    // Create Redis subscriber client with lazyConnect to control connection timing
+    this.redisSubscriber = redis.duplicate({
+      lazyConnect: true,
+    })
 
     this.setupRedisSubscription()
     this.setupSocketHandlers()
@@ -45,11 +57,18 @@ export class EventNotifier {
       await this.redisSubscriber.subscribe('event:status:updates', (message) => {
         try {
           const update: EventStatusUpdate = JSON.parse(message)
+
+          // Validate the parsed update object
+          if (!update || typeof update !== 'object' || !update.eventId) {
+            console.warn('⚠️ Received invalid event status update:', message)
+            return
+          }
+
           // Broadcast to all connected clients
           this.io.emit('event:status', update)
           console.log(`📡 Broadcasting event status update: ${update.eventId} -> ${update.status}`)
         } catch (error) {
-          console.error('❌ Error parsing event status update:', error)
+          console.error('❌ Error parsing event status update:', error, 'Message:', message)
         }
       })
 
@@ -120,6 +139,7 @@ export class EventNotifier {
   async close() {
     await this.redisSubscriber.quit()
     await this.io.close()
+    this.httpServer.close()
     console.log('🔌 WebSocket Event Notifier closed')
   }
 }

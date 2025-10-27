@@ -8,22 +8,28 @@ A Windows Explorer-like web application featuring **real-time WebSocket updates*
 # 1. Install dependencies
 bun install
 
-# 2. Start infrastructure (PostgreSQL, Redis, RabbitMQ)
+# 2. Configure environment variables (see Environment Setup below)
+cp packages/backend/.env.example packages/backend/.env
+cp packages/worker/.env.example packages/worker/.env
+cp packages/frontend/.env.example packages/frontend/.env
+
+# 3. Start infrastructure (PostgreSQL, Redis, RabbitMQ)
 docker compose up -d
 
-# 3. Setup database
+# 4. Setup database
 cd packages/backend
 bun run prisma:migrate
 bun run prisma:seed
 
-# 4. Start all services
+# 5. Start all services
 bun run dev
 ```
 
 **Access:**
-- Frontend: http://localhost:8080
+
+- Frontend: http://localhost:5173
 - Backend API: http://localhost:3000
-- RabbitMQ UI: http://localhost:15672 (window_explorer / window_explorer123)
+- RabbitMQ UI: http://localhost:15672 (window-explorer / window-explorer_password)
 
 ## 🏗️ Architecture
 
@@ -59,12 +65,14 @@ packages/
 ## 🚀 Features
 
 ### ✨ Real-Time Async Feedback (NEW!)
+
 - **WebSocket updates** for instant operation status
 - **Optimistic UI** with visual status indicators (⏳ → 🔄 → ✅/❌)
 - **Toast notifications** for user feedback
 - **Event tracking** persisted in database
 
 ### 📂 File Management
+
 - Hierarchical folder tree with expand/collapse
 - File upload with drag & drop
 - File preview (PDF, images, text, video, audio)
@@ -72,12 +80,14 @@ packages/
 - Global search
 
 ### 🏛️ Clean Architecture
+
 - **Domain** layer (business logic, no dependencies)
 - **Application** layer (use cases, ports)
 - **Infrastructure** layer (adapters: Redis, RabbitMQ, Prisma)
 - **Presentation** layer (API routes, WebSocket)
 
 ### 🎯 Event-Driven Design
+
 - **RabbitMQ** topic-based routing (4 exchanges, 8 queues)
 - **Redis Pub/Sub** for real-time WebSocket broadcasting
 - **Worker service** for async processing
@@ -85,25 +95,114 @@ packages/
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| **Runtime** | Bun (fast all-in-one) |
-| **Backend** | Elysia + Socket.IO |
-| **Frontend** | Vue 3 + Vite |
-| **Database** | PostgreSQL 16 + Prisma ORM |
-| **Cache** | Redis 7 |
-| **Queue** | RabbitMQ 3.13 |
-| **Monorepo** | Turborepo |
-| **Container** | Docker Compose |
+| Layer         | Technology                 |
+| ------------- | -------------------------- |
+| **Runtime**   | Bun (fast all-in-one)      |
+| **Backend**   | Elysia + Socket.IO         |
+| **Frontend**  | Vue 3 + Vite               |
+| **Database**  | PostgreSQL 16 + Prisma ORM |
+| **Cache**     | Redis 7                    |
+| **Queue**     | RabbitMQ 3.13              |
+| **Monorepo**  | Turborepo                  |
+| **Container** | Docker Compose             |
 
 ## 📋 Prerequisites
 
 - **Bun** >= 1.1.0 ([Install](https://bun.sh/))
 - **Docker** & **Docker Compose** ([Install](https://docs.docker.com/))
 
+## 🔐 Environment Setup
+
+### Backend Environment Variables
+
+Create `packages/backend/.env`:
+
+```bash
+# Database Configuration
+DATABASE_URL="postgresql://window-explorer:window-explorer_password@localhost:5432/window-explorer_db?schema=public"
+
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+API_VERSION=v1
+SERVICE_ROLE=api
+FRONTEND_URL=http://localhost:5173
+
+# Redis Configuration
+REDIS_URL="redis://localhost:6379"
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# RabbitMQ Configuration
+RABBITMQ_URL="amqp://window-explorer:window-explorer_password@localhost:5672"
+RABBITMQ_HOST=localhost
+RABBITMQ_PORT=5672
+RABBITMQ_USER=window-explorer
+RABBITMQ_PASS=window-explorer_password
+
+# Cache Settings (TTL in seconds)
+CACHE_TTL_FOLDER_TREE=300
+CACHE_TTL_FOLDER_CHILDREN=120
+CACHE_TTL_FOLDER_BY_ID=180
+CACHE_TTL_SEARCH=60
+CACHE_TTL_FILE_LIST=120
+
+# Queue Settings
+QUEUE_PREFETCH_COUNT=10
+```
+
+### Worker Environment Variables
+
+Create `packages/worker/.env`:
+
+```bash
+# Database Configuration
+DATABASE_URL="postgresql://window-explorer:window-explorer_password@localhost:5432/window-explorer_db?schema=public"
+
+# Server Configuration
+NODE_ENV=development
+SERVICE_ROLE=worker
+
+# Redis Configuration
+REDIS_URL="redis://localhost:6379"
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# RabbitMQ Configuration
+RABBITMQ_URL="amqp://window-explorer:window-explorer_password@localhost:5672"
+RABBITMQ_HOST=localhost
+RABBITMQ_PORT=5672
+RABBITMQ_USER=window-explorer
+RABBITMQ_PASS=window-explorer_password
+
+# Queue Settings
+QUEUE_PREFETCH_COUNT=10
+```
+
+### Frontend Environment Variables
+
+Create `packages/frontend/.env`:
+
+```bash
+# Backend API URL
+VITE_API_URL=http://localhost:3000
+
+# Backend WebSocket URL (defaults to VITE_API_URL if not set)
+VITE_BACKEND_URL=http://localhost:3000
+```
+
+### Important Configuration Notes
+
+1. **FRONTEND_URL**: Must match the port where your frontend dev server runs (default: 5173 for Vite)
+2. **WebSocket CORS**: Backend WebSocket server uses `FRONTEND_URL` for CORS configuration
+3. **Database Credentials**: Match the credentials in `docker-compose.yml`
+4. **RabbitMQ Credentials**: Match the credentials in `docker-compose.yml`
+5. **Redis**: Default configuration works for local development
+
 ## 🔧 Development Scripts
 
 ### Root Commands
+
 ```bash
 bun run dev      # Start all services (backend, worker, frontend)
 bun run build    # Build all packages
@@ -112,6 +211,7 @@ bun run lint     # Lint all packages
 ```
 
 ### Backend Commands
+
 ```bash
 cd packages/backend
 bun run dev              # Start backend API + WebSocket
@@ -122,6 +222,7 @@ bun test                 # Run tests (102 tests passing)
 ```
 
 ### Worker Commands
+
 ```bash
 cd packages/worker
 bun run dev              # Start background worker
@@ -129,9 +230,10 @@ bun test                 # Run worker tests
 ```
 
 ### Frontend Commands
+
 ```bash
 cd packages/frontend
-bun run dev              # Start dev server (http://localhost:8080)
+bun run dev              # Start dev server (http://localhost:5173)
 bun run build            # Build for production
 bun test                 # Run component tests
 ```
@@ -163,6 +265,7 @@ Frontend receives update → Shows notification + refreshes UI
 ## 🎨 UI Components
 
 ### Pending Events Display
+
 ```
 ┌─────────────────────────────────────┐
 │ Processing...                        │
@@ -175,6 +278,7 @@ Frontend receives update → Shows notification + refreshes UI
 ```
 
 ### Status Colors
+
 - 🟡 **Pending** (#fff3cd) - Waiting for worker
 - 🔵 **Processing** (#d1ecf1) - Worker is processing
 - 🟢 **Completed** (#d4edda) - Successfully done
@@ -232,16 +336,19 @@ bun test:e2e
 ## 🐳 Docker Deployment
 
 ### Development
+
 ```bash
 docker-compose up -d
 ```
 
 ### Production
+
 ```bash
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
 ### Using Makefile
+
 ```bash
 make build    # Build all images
 make up       # Start services
@@ -252,6 +359,7 @@ make logs     # View logs
 ## 📊 API Endpoints
 
 ### Event Status (NEW!)
+
 ```
 GET    /api/v1/events/:eventId/status    # Get event status
 GET    /api/v1/events/pending             # Get pending events
@@ -260,6 +368,7 @@ DELETE /api/v1/events/cleanup              # Cleanup old events
 ```
 
 ### Folder Management
+
 ```
 GET    /api/v1/folders/tree              # Get folder tree
 GET    /api/v1/folders/:id/children      # Get folder contents
@@ -269,6 +378,7 @@ DELETE /api/v1/folders/:id               # Delete folder
 ```
 
 ### File Management
+
 ```
 GET    /api/v1/files/:id                 # Get file info
 GET    /api/v1/files/:id/download        # Download file
@@ -277,6 +387,7 @@ DELETE /api/v1/files/:id                 # Delete file
 ```
 
 ### Search
+
 ```
 GET    /api/v1/search?q={query}          # Global search
 GET    /api/v1/search/folders?q={query}  # Search folders
@@ -286,15 +397,18 @@ GET    /api/v1/search/files?q={query}    # Search files
 ## 🔒 Git Hooks (Husky)
 
 ### Pre-commit
+
 - ✅ ESLint auto-fix
 - ✅ Prettier auto-format
 
 ### Pre-push
+
 - ✅ All tests must pass
 
 ## 🛠️ Troubleshooting
 
 ### Docker services not starting
+
 ```bash
 # Check if ports are in use
 lsof -i :5432    # PostgreSQL
@@ -306,14 +420,31 @@ docker compose logs -f
 ```
 
 ### WebSocket not connecting
-```bash
-# Check backend logs for WebSocket initialization
+
 ✅ WebSocket Event Notifier initialized
 📻 Subscribed to Redis event:status:updates channel
 
-# Check frontend console
+# Frontend console should show:
+
 ✅ Connected to event status updates
-```
+
+````
+
+### Redis Connection Error: "Redis is already connecting/connected"
+
+**Symptom**: Backend shows "Redis is already connecting/connected" error
+
+**Solution**: This has been fixed in the codebase. The Redis subscriber now uses `lazyConnect: true` to prevent race conditions. If you still see this error, ensure you're on the latest version.
+
+### Files not showing after upload
+
+**Symptom**: Files upload successfully but don't appear in the folder view until manual refresh
+
+**Solution**: This has been fixed in the codebase. The FileUpload component now emits `file-uploaded` events that trigger automatic folder refresh. If you still experience this issue:
+
+1. Restart the dev server
+2. Clear browser cache
+3. Check frontend console for errors
 
 ### Database issues
 ```bash
@@ -323,6 +454,21 @@ docker compose up -d
 cd packages/backend
 bun run prisma:migrate
 bun run prisma:seed
+````
+
+### Port conflicts
+
+If you see "Address already in use" errors:
+
+```bash
+# Check what's using the ports
+lsof -i :3000    # Backend
+lsof -i :5173    # Frontend
+lsof -i :5432    # PostgreSQL
+lsof -i :6379    # Redis
+lsof -i :5672    # RabbitMQ
+
+# Kill processes or change ports in .env files
 ```
 
 ## 📚 Documentation
@@ -333,6 +479,7 @@ bun run prisma:seed
 ## 🎯 Implementation Progress
 
 ### ✅ Completed (100%)
+
 1. **Monorepo Setup** - Turborepo, Docker, Git hooks
 2. **Shared Package** - Event types, queue config, utilities
 3. **Database Setup** - Prisma, Clean Architecture, seed data
@@ -345,6 +492,7 @@ bun run prisma:seed
 10. **Async Feedback** - WebSocket, real-time updates, event tracking ⭐ **NEW!**
 
 ### 📊 Stats
+
 - **Backend**: 102 tests passing (229 assertions)
 - **Infrastructure**: 35 integration tests (Redis + RabbitMQ)
 - **Shared**: 60 tests passing
@@ -368,18 +516,18 @@ Built with ❤️ using modern web technologies and best practices.
 
 ## 📖 Key Features Summary
 
-| Feature | Status | Description |
-|---------|--------|-------------|
-| Real-time Updates | ✅ | WebSocket for instant feedback |
-| Event Tracking | ✅ | Database-persisted event status |
-| Optimistic UI | ✅ | Visual indicators (⏳🔄✅❌) |
-| File Management | ✅ | Upload, preview, download, delete |
-| Folder Tree | ✅ | Hierarchical navigation |
-| Global Search | ✅ | Search folders & files |
-| Clean Architecture | ✅ | Layered, testable, maintainable |
-| Event-Driven | ✅ | RabbitMQ + Redis Pub/Sub |
-| Containerized | ✅ | Docker Compose deployment |
-| CI/CD | ✅ | Automated testing & deployment |
+| Feature            | Status | Description                       |
+| ------------------ | ------ | --------------------------------- |
+| Real-time Updates  | ✅     | WebSocket for instant feedback    |
+| Event Tracking     | ✅     | Database-persisted event status   |
+| Optimistic UI      | ✅     | Visual indicators (⏳🔄✅❌)      |
+| File Management    | ✅     | Upload, preview, download, delete |
+| Folder Tree        | ✅     | Hierarchical navigation           |
+| Global Search      | ✅     | Search folders & files            |
+| Clean Architecture | ✅     | Layered, testable, maintainable   |
+| Event-Driven       | ✅     | RabbitMQ + Redis Pub/Sub          |
+| Containerized      | ✅     | Docker Compose deployment         |
+| CI/CD              | ✅     | Automated testing & deployment    |
 
 **Status**: Production-ready! 🎉
 

@@ -1,9 +1,9 @@
 /**
  * Composable for managing file upload operations
- * 
+ *
  * This composable provides reactive state and methods for handling
  * file uploads with progress tracking, status management, and queue management.
- * 
+ *
  * @module useFileUpload
  */
 
@@ -13,7 +13,7 @@ import type { FileUpload } from '../types'
 
 /**
  * Composable function that provides state and methods for file upload operations
- * 
+ *
  * @returns Object containing reactive state and methods for file uploads
  */
 export function useFileUpload() {
@@ -24,14 +24,14 @@ export function useFileUpload() {
 
   /**
    * Adds a file to the upload queue
-   * 
+   *
    * @param file - The File object to upload
    * @param folderId - The ID of the folder to upload to
    * @returns The generated upload ID
    */
   function addUpload(file: File, folderId: string): string {
     const uploadId = `upload_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    
+
     const newUpload: FileUpload = {
       id: uploadId,
       name: file.name,
@@ -39,36 +39,39 @@ export function useFileUpload() {
       status: 'pending',
       progress: 0,
       file,
-      folderId
+      folderId,
     }
-    
+
     uploads.value.push(newUpload)
     return uploadId
   }
 
   /**
    * Starts the upload process for a single file
-   * 
+   *
    * @param uploadId - The ID of the upload to start
+   * @param onSuccess - Optional callback to execute when upload succeeds
    * @returns Promise resolving to true if successful
    */
-  async function startUpload(uploadId: string) {
-    const upload = uploads.value.find(u => u.id === uploadId)
+  async function startUpload(uploadId: string, onSuccess?: () => void) {
+    const upload = uploads.value.find((u) => u.id === uploadId)
     if (!upload) return false
 
     upload.status = 'uploading'
     isUploading.value = true
 
     try {
-      await api.uploadFile(
-        upload.file, 
-        upload.folderId, 
-        (progress) => {
-          upload.progress = progress
-        }
-      )
-      
+      await api.uploadFile(upload.file, upload.folderId, (progress) => {
+        upload.progress = progress
+      })
+
       upload.status = 'success'
+
+      // Execute success callback if provided
+      if (onSuccess) {
+        onSuccess()
+      }
+
       return true
     } catch (error) {
       upload.status = 'error'
@@ -81,12 +84,13 @@ export function useFileUpload() {
 
   /**
    * Initiates the upload of multiple files to the specified folder
-   * 
+   *
    * @param files - List of files to upload
    * @param folderId - ID of the folder to upload to
+   * @param onSuccess - Optional callback to execute when any upload succeeds
    * @returns Promise resolving to array of upload results
    */
-  async function uploadFiles(files: FileList, folderId: string) {
+  async function uploadFiles(files: FileList, folderId: string, onSuccess?: () => void) {
     const uploadIds: string[] = []
 
     // Add all files to the upload queue
@@ -97,19 +101,19 @@ export function useFileUpload() {
     }
 
     // Start all uploads
-    const uploadPromises = uploadIds.map(id => startUpload(id))
+    const uploadPromises = uploadIds.map((id) => startUpload(id, onSuccess))
     const results = await Promise.all(uploadPromises)
-    
+
     return results
   }
 
   /**
    * Removes an upload from the queue
-   * 
+   *
    * @param uploadId - The ID of the upload to remove
    */
   function removeUpload(uploadId: string) {
-    const index = uploads.value.findIndex(u => u.id === uploadId)
+    const index = uploads.value.findIndex((u) => u.id === uploadId)
     if (index !== -1) {
       uploads.value.splice(index, 1)
     }
@@ -119,8 +123,8 @@ export function useFileUpload() {
    * Clears completed uploads (success and error) from the queue
    */
   function clearCompletedUploads() {
-    uploads.value = uploads.value.filter(upload => 
-      upload.status !== 'success' && upload.status !== 'error'
+    uploads.value = uploads.value.filter(
+      (upload) => upload.status !== 'success' && upload.status !== 'error',
     )
   }
 
@@ -131,6 +135,6 @@ export function useFileUpload() {
     startUpload,
     uploadFiles,
     removeUpload,
-    clearCompletedUploads
+    clearCompletedUploads,
   }
 }

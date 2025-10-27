@@ -30,6 +30,12 @@ export class SearchIndexer {
    * @throws Error if there's an issue with indexing
    */
   async indexFolder(payload: SearchIndexFolderPayload): Promise<void> {
+    // Validate payload
+    if (!payload || !payload.folderId) {
+      console.error('❌ Invalid payload for folder indexing:', payload)
+      return
+    }
+
     console.log(`🔍 Indexing folder: ${payload.folderId}`)
 
     try {
@@ -65,6 +71,12 @@ export class SearchIndexer {
    * @throws Error if there's an issue with indexing
    */
   async indexFile(payload: SearchIndexFilePayload): Promise<void> {
+    // Validate payload
+    if (!payload || !payload.fileId) {
+      console.error('❌ Invalid payload for file indexing:', payload)
+      return
+    }
+
     console.log(`🔍 Indexing file: ${payload.fileId}`)
 
     try {

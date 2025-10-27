@@ -150,7 +150,7 @@ export class FileService {
     await this.eventPublisher.publish({
       type: 'file.created',
       payload: {
-        id: file.id,
+        fileId: file.id,
         name: file.name,
         folderId: file.folderId,
         size: file.size,
@@ -161,15 +161,16 @@ export class FileService {
       },
     })
 
-    // Publish search.index event for future search indexing
+    // Publish search.index.file event for search indexing
     await this.eventPublisher.publish({
-      type: 'search.index',
+      type: 'search.index.file',
       payload: {
-        action: 'create',
-        type: 'file',
-        id: file.id,
+        fileId: file.id,
         name: file.name,
         folderId: file.folderId,
+      },
+      metadata: {
+        timestamp: new Date().toISOString(),
       },
     })
 
@@ -216,7 +217,7 @@ export class FileService {
     await this.eventPublisher.publish({
       type: 'file.updated',
       payload: {
-        id: file.id,
+        fileId: file.id,
         name: file.name,
         folderId: file.folderId,
         oldFolderId: oldFile.folderId,
@@ -226,15 +227,16 @@ export class FileService {
       },
     })
 
-    // Publish search.index event
+    // Publish search.index.file event for search indexing
     await this.eventPublisher.publish({
-      type: 'search.index',
+      type: 'search.index.file',
       payload: {
-        action: 'update',
-        type: 'file',
-        id: file.id,
+        fileId: file.id,
         name: file.name,
         folderId: file.folderId,
+      },
+      metadata: {
+        timestamp: new Date().toISOString(),
       },
     })
 
@@ -317,7 +319,7 @@ export class FileService {
     await this.eventPublisher.publish({
       type: 'file.deleted',
       payload: {
-        id: file.id,
+        fileId: file.id,
         name: file.name,
         folderId: file.folderId,
       },

@@ -135,6 +135,14 @@ export class RabbitMQEventPublisher implements EventPublisherPort {
         exchange: EXCHANGES.SEARCH,
         routingKey: RoutingKeys.SEARCH.INDEX_FOLDER,
       },
+      'search.index.folder': {
+        exchange: EXCHANGES.SEARCH,
+        routingKey: RoutingKeys.SEARCH.INDEX_FOLDER,
+      },
+      'search.index.file': {
+        exchange: EXCHANGES.SEARCH,
+        routingKey: RoutingKeys.SEARCH.INDEX_FILE,
+      },
     }
 
     const routing = routingMap[eventType]

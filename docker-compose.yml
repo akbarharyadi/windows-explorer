@@ -22,6 +22,44 @@ services:
     networks:
       - window-explorer-network
 
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: window-explorer-redis
+    restart: unless-stopped
+    ports:
+      - '${REDIS_PORT:-6379}:6379}'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - window-explorer-network
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: window-explorer-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-window-explorer}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-window-explorer_password}
+    ports:
+      - '${RABBITMQ_PORT:-5672}:5672}'
+      - '${RABBITMQ_MANAGEMENT_PORT:-15672}:15672}'
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmqctl', 'status']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - window-explorer-network
+
   # Backend API (Elysia + Bun)
   backend:
     build:
@@ -31,12 +69,18 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-window-explorer}:${POSTGRES_PASSWORD:-window-explorer_password}@postgres:5432/${POSTGRES_DB:-window-explorer_db}?schema=public
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-window-explorer}:${RABBITMQ_PASSWORD:-window-explorer_password}@rabbitmq:5672
       PORT: 3000
       NODE_ENV: production
     ports:
       - '${BACKEND_PORT:-3000}:3000}'
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test:
@@ -57,6 +101,37 @@ services:
       sh -c "
         bunx prisma migrate deploy &&
         bunx prisma generate &&
+        bun run dist/index.js
+      "
+
+  # Worker Service
+  worker:
+    build:
+      context: .
+      dockerfile: packages/worker/Dockerfile
+    container_name: window-explorer-worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-window-explorer}:${POSTGRES_PASSWORD:-window-explorer_password}@postgres:5432/${POSTGRES_DB:-window-explorer_db}?schema=public
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-window-explorer}:${RABBITMQ_PASSWORD:-window-explorer_password}@rabbitmq:5672
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'if [ -f /app/.worker_running ]; then exit 0; else exit 1; fi']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - window-explorer-network
+    command: >
+      sh -c "
         bun run dist/index.js
       "
 
@@ -82,6 +157,10 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
     driver: local
 
 networks:

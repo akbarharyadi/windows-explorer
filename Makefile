@@ -1,7 +1,7 @@
 .PHONY: help build up down restart logs clean seed
 
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $1, $2}'
 
 build: ## Build all Docker images
 	docker-compose build
@@ -27,6 +27,15 @@ logs-frontend: ## View frontend logs
 logs-db: ## View database logs
 	docker-compose logs -f postgres
 
+logs-redis: ## View Redis logs
+	docker-compose logs -f redis
+
+logs-rabbitmq: ## View RabbitMQ logs
+	docker-compose logs -f rabbitmq
+
+logs-worker: ## View worker logs
+	docker-compose logs -f worker
+
 clean: ## Remove all containers, volumes, and images
 	docker-compose down -v
 	docker system prune -af
@@ -48,6 +57,12 @@ shell-frontend: ## Open shell in frontend container
 
 shell-db: ## Open PostgreSQL shell
 	docker-compose exec postgres psql -U window-explorer -d window-explorer_db
+
+shell-redis: ## Open Redis CLI
+	docker-compose exec redis redis-cli
+
+shell-rabbitmq: ## Open RabbitMQ shell
+	docker-compose exec rabbitmq rabbitmqctl
 
 ps: ## Show running containers
 	docker-compose ps

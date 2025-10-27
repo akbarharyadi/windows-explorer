@@ -3,30 +3,21 @@ FROM oven/bun:1.2-alpine AS build
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json bun.lock ./
-COPY packages/shared/package.json ./packages/shared/package.json
-COPY packages/worker/package.json ./packages/worker/package.json
-COPY packages/backend/package.json ./packages/backend/package.json
+# Install system dependencies
+RUN apk add --no-cache git
 
-# Install all dependencies
-RUN bun install
+# Copy all packages first (monorepo structure)
+COPY . .
 
-# Copy source code
-COPY packages/shared ./packages/shared
-COPY packages/worker/src ./packages/worker/src
-COPY packages/worker/tsconfig.json ./packages/worker/tsconfig.json
-COPY packages/backend/prisma ./packages/backend/prisma
+# Install dependencies for all packages
+WORKDIR /app
+RUN bun install --frozen-lockfile
 
 # Build shared package
 WORKDIR /app/packages/shared
 RUN bun run build
 
-# Generate Prisma client
-WORKDIR /app/packages/backend
-RUN bunx prisma generate
-
-# Build worker
+# Build worker package
 WORKDIR /app/packages/worker
 RUN bun run build
 
@@ -35,18 +26,18 @@ FROM oven/bun:1.2-alpine
 
 WORKDIR /app
 
-# Copy everything we need
+# Copy built application
 COPY --from=build /app/packages/worker/dist ./dist
-COPY --from=build /app/packages/worker/package.json ./package.json
+COPY --from=build /app/packages/worker/package.json ./
 COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/packages/shared ./node_modules/@window-explorer/shared
 
-# Expose port
-EXPOSE 3001
+# Expose port (though worker is headless)
+EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD ps aux | grep 'bun' | grep -v grep || exit 1
+# Health check - create a file when worker is running
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD test -f /app/.worker_running || exit 1
 
-# Start worker
-CMD ["bun", "run", "dist/index.js"]
+# Start application and touch a file to indicate it's running
+CMD ["sh", "-c", "touch /app/.worker_running && bun run dist/index.js"]

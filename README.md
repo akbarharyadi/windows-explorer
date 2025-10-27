@@ -347,7 +347,7 @@ Detailed implementation plans are available in the [`plan/`](./plan/) directory:
 - [Step 03: Backend API](./plan/03-backend-api.md) ✅ **COMPLETED**
 - [Step 03.5: Worker Microservice](./plan/03.5-worker-microservice.md) ✅ **COMPLETED**
 - [Step 04: Frontend App](./plan/04-frontend-app.md) ✅ **COMPLETED**
-- [Step 05: Docker Setup](./plan/05-docker-setup.md)
+- [Step 05: Docker Setup](./plan/05-docker-setup.md) ✅ **COMPLETED**
 - [Step 06: Testing & Deployment](./plan/06-testing-deployment.md)
 
 ## 🔧 Troubleshooting
@@ -528,11 +528,72 @@ This project is private and proprietary.
   - Backend: 23 files created, 4 modified, 3,550 lines added in Steps 02.5 & 03
   - Worker: Additional files created in Step 03.5
   - Frontend: 38 files created in Step 04 (components, composables, services, types)
+  - Docker: 6 files created in Step 05 (docker-compose configurations, Dockerfiles, environment files)
 - **Testing**: All lint checks passed, all CI checks passed (build + test)
 
 ---
 
-## 🌐 Frontend Features
+## 🐳 Docker Setup
+
+The application is now fully containerized with Docker Compose for easy deployment in any environment:
+
+### Services Containerized
+
+- **PostgreSQL**: Database service with persistent storage
+- **Redis**: Cache service with persistent storage
+- **RabbitMQ**: Message broker with management interface
+- **Backend API**: Elysia + Bun service
+- **Worker Service**: Background processing service
+- **Frontend**: Vue 3 + Nginx web application
+- **Nginx**: Reverse proxy for production deployments
+
+### Environment Support
+
+- **Development**: Optimized for local development with live reloading
+- **Production**: Resource-constrained with proper security and performance settings
+- **Staging**: Intermediate environment for testing deployments
+
+### Deployment Options
+
+1. **Local Development**:
+
+   ```bash
+   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+   ```
+
+2. **Production Deployment**:
+
+   ```bash
+   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+   ```
+
+3. **Using Makefile** (recommended):
+   ```bash
+   make build  # Build all images
+   make up     # Start all services
+   make logs   # Monitor service logs
+   ```
+
+### Configuration Management
+
+- **Environment Variables**: Centralized configuration with `.env` files
+- **Secrets Management**: Secure handling of passwords and API keys
+- **Service Discovery**: Automatic service linking within Docker network
+- **Health Checks**: Built-in monitoring for all services
+
+### Data Persistence
+
+- **Database**: PostgreSQL data stored in named volumes
+- **Cache**: Redis data persisted to disk
+- **Message Queue**: RabbitMQ state preserved between restarts
+- **Backups**: Automated backup scripts for disaster recovery
+
+### Resource Optimization
+
+- **Memory Limits**: Configured resource constraints for production
+- **CPU Allocation**: Balanced CPU usage across services
+- **Network Isolation**: Dedicated Docker network for secure communication
+- **Storage Volumes**: Efficient data storage with proper permissions
 
 The frontend application now includes the following features:
 

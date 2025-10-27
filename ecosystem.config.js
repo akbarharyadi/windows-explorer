@@ -1,8 +1,12 @@
-export default {
+const path = require('path')
+
+module.exports = {
   apps: [
     {
       name: 'window-explorer-backend',
-      script: './packages/backend/dist/index.js',
+      cwd: '/var/www/window-explorer',
+      script: path.resolve(__dirname, 'packages/backend/dist/index.js'),
+      interpreter: 'node',
       instances: 'max',
       exec_mode: 'cluster',
       env: {
@@ -17,7 +21,9 @@ export default {
     },
     {
       name: 'window-explorer-worker',
-      script: './packages/worker/dist/index.js',
+      cwd: '/var/www/window-explorer',
+      script: path.resolve(__dirname, 'packages/worker/dist/index.js'),
+      interpreter: 'node',
       instances: 'max',
       exec_mode: 'cluster',
       env: {

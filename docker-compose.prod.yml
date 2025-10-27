@@ -1,33 +1,32 @@
-version: '3.8'
-
 services:
+  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    restart: always
+    container_name: window-explorer-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DATABASE_NAME:-window-explorer_db}
       POSTGRES_USER: ${POSTGRES_USER:-window-explorer}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-window-explorer_password}
+      POSTGRES_DB: ${POSTGRES_DB:-window-explorer_db}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - '5432:5432'
     healthcheck:
-      test:
-        [
-          'CMD-SHELL',
-          'pg_isready -U ${POSTGRES_USER:-window-explorer} -d ${DATABASE_NAME:-window-explorer_db}',
-        ]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-window-explorer}']
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - window-explorer-network
 
+  # Redis Cache
   redis:
     image: redis:7-alpine
-    restart: always
+    container_name: window-explorer-redis
+    restart: unless-stopped
     ports:
-      - '6379:6379'
-    command: redis-server --appendonly yes
+      - '${REDIS_PORT:-6379}:6379'
     volumes:
       - redis_data:/data
     healthcheck:
@@ -35,94 +34,38 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - window-explorer-network
 
+  # RabbitMQ Message Broker
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    restart: always
+    container_name: window-explorer-rabbitmq
+    restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-window-explorer}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-window-explorer_password}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-window-explorer_password}
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - '${RABBITMQ_PORT:-5672}:5672'
+      - '${RABBITMQ_MANAGEMENT_PORT:-15672}:15672'
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: rabbitmq-diagnostics -q ping
+      test: ['CMD', 'rabbitmqctl', 'status']
       interval: 30s
       timeout: 10s
       retries: 3
-
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: backend
-    restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://window-explorer:window-explorer_password@postgres:5432/window-explorer_db?schema=public}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://window-explorer:window-explorer_password@rabbitmq:5672}
-      - PORT=${BACKEND_PORT:-3000}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
-      - NODE_ENV=${NODE_ENV:-production}
-      - SERVICE_ROLE=api
-    ports:
-      - '${BACKEND_PORT:-3000}:3000'
-      - '${WEBSOCKET_PORT:-3001}:3001'
-    healthcheck:
-      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3000/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: worker
-    restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://window-explorer:window-explorer_password@postgres:5432/window-explorer_db?schema=public}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://window-explorer:window-explorer_password@rabbitmq:5672}
-      - NODE_ENV=${NODE_ENV:-production}
-      - SERVICE_ROLE=worker
-    healthcheck:
-      test: ['CMD', 'pgrep', 'bun']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: frontend
-    restart: always
-    ports:
-      - '${FRONTEND_PORT:-80:80}'
-    depends_on:
-      - backend
-    environment:
-      - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
-      - VITE_WEBSOCKET_URL=${VITE_WEBSOCKET_URL:-http://localhost:3001}
+    networks:
+      - window-explorer-network
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
   rabbitmq_data:
+    driver: local
+
+networks:
+  window-explorer-network:
+    driver: bridge

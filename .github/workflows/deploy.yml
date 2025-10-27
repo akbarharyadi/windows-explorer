@@ -3,12 +3,18 @@ name: Deploy to Ubuntu Server
 on:
   push:
     branches: [master]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      APP_DIR: ${{ secrets.APP_DIR }}
+      DB_SERVICE: ${{ secrets.DB_SERVICE }}
+      DB_URL: ${{ secrets.DB_URL }}
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Bun
@@ -16,114 +22,52 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Install dependencies and build
-        run: |
-          bun install
-          cd packages/frontend && bun run build
-          cd ../backend && bun run build
-          cd ../worker && bun run build
-          cd ../..
-
-      - name: Deploy to server
+      - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
           script: |
-            # Navigate to project in web directory
-            cd /var/www/window-explorer
+            set -Eeuo pipefail
+            cd "${APP_DIR}"
 
-            # Ensure bun is in PATH (add to .bashrc if needed)
             export PATH="$HOME/.bun/bin:$PATH"
 
-            # Pull latest code
-            git pull origin master
+            git fetch origin master
+            git reset --hard origin/master
 
-            # Install dependencies
             bun install
 
-            # Update and restart infrastructure services
-            sudo docker compose -f docker-compose.yml up -d
+            sudo docker compose -f docker-compose.prod.yml up -d
 
-            # Wait for infrastructure to be ready (especially database)
-            echo "Waiting for infrastructure to be ready..."
-            sleep 30
-
-            # Check if infrastructure services are running
-            sudo docker compose -f docker-compose.yml ps
-
-            # Wait for PostgreSQL to be ready (retry mechanism)
-            echo "Waiting for PostgreSQL to be ready..."
+            echo "Waiting for PostgreSQL..."
             max_attempts=30
             attempt=1
-            until sudo docker compose -f docker-compose.yml exec postgres pg_isready > /dev/null 2>&1 || [ $attempt -gt $max_attempts ]; do
-              echo "Waiting for PostgreSQL... (attempt $attempt/$max_attempts)"
+            until sudo docker compose -f docker-compose.prod.yml exec -T "${DB_SERVICE}" pg_isready >/dev/null 2>&1 || [ $attempt -gt $max_attempts ]; do
+              echo "Waiting... ($attempt/$max_attempts)"
               sleep 5
               attempt=$((attempt + 1))
             done
 
-            if [ $attempt -gt $max_attempts ]; then
-              echo "PostgreSQL is not ready after $max_attempts attempts. Exiting."
-              exit 1
-            fi
-            echo "PostgreSQL is ready!"
-
-            # Generate Prisma client
             cd packages/backend
+            export DATABASE_URL="${DB_URL}"
             bun prisma generate
-            cd ../..
-
-            # Run database migrations - using the same credentials as defined in the docker-compose
-            cd packages/backend
-            export DATABASE_URL="postgresql://window-explorer:window-explorer_password@localhost:5432/window-explorer_db?schema=public"
             bun prisma migrate deploy
             cd ../..
 
-            # Build packages
             cd packages/frontend && bun run build
             cd ../backend && bun run build
             cd ../worker && bun run build
             cd ../..
 
-            # Verify built files exist before starting PM2
-            if [ ! -f "./packages/backend/dist/index.js" ]; then
-              echo "Error: Backend build file does not exist!"
-              ls -la ./packages/backend/
-              if [ -d "./packages/backend/dist" ]; then
-                ls -la ./packages/backend/dist/
-              fi
-              exit 1
+            if ! command -v pm2 &>/dev/null; then
+              sudo npm i -g pm2
             fi
 
-            if [ ! -f "./packages/worker/dist/index.js" ]; then
-              echo "Error: Worker build file does not exist!"
-              ls -la ./packages/worker/
-              if [ -d "./packages/worker/dist" ]; then
-                ls -la ./packages/worker/dist/
-              fi
-              exit 1
-            fi
-
-            # Ensure PM2 is in PATH and start/reload processes
-            export PATH="$HOME/.npm-global/bin:$PATH"
-            # Ensure Node.js is available for PM2 (PM2 sometimes needs node even when using bun)
-            # Check if node is available, install if not
-            if ! command -v node &> /dev/null; then
-              echo "Installing Node.js for PM2..."
-              curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-              sudo apt-get install -y nodejs
-            fi
-
-            # First stop any existing processes, then start new ones
-            pm2 delete all || echo "No existing processes to delete"
-            pm2 start ecosystem.config.js
-
-            # Wait for processes to start
-            sleep 15
-
-            # Check PM2 status
+            pm2 delete all || true
+            pm2 start ecosystem.config.js --update-env
             pm2 status
-
-            echo "Deployment completed!"
+            echo "✅ Deployment done."

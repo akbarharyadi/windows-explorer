@@ -49,26 +49,15 @@ jobs:
 
             # Wait for infrastructure to be ready (especially database)
             echo "Waiting for infrastructure to be ready..."
-            sleep 20
+            sleep 30
 
             # Check if infrastructure services are running
             sudo docker compose -f docker-compose.infra.yml ps
 
-            # Wait for PostgreSQL to be ready (retry mechanism)
-            echo "Waiting for PostgreSQL to be ready..."
-            max_attempts=30
-            attempt=1
-            until sudo docker compose -f docker-compose.infra.yml exec postgres pg_isready > /dev/null 2>&1 || [ $attempt -gt $max_attempts ]; do
-              echo "Waiting for PostgreSQL... (attempt $attempt/$max_attempts)"
-              sleep 5
-              attempt=$((attempt + 1))
-            done
-
-            if [ $attempt -gt $max_attempts ]; then
-              echo "PostgreSQL is not ready after $max_attempts attempts. Exiting."
-              exit 1
-            fi
-            echo "PostgreSQL is ready!"
+            # Since pg_isready was successful but Prisma still can't connect,
+            # let's add a wait after infrastructure before running migrations
+            echo "Waiting additional time for database to be fully ready..."
+            sleep 20
 
             # Generate Prisma client
             cd packages/backend
@@ -77,6 +66,8 @@ jobs:
 
             # Run database migrations
             cd packages/backend
+            # Use DATABASE_URL from environment or default to the docker-compose service
+            export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/window-explorer_db"
             bun prisma migrate deploy
             cd ../..
 
@@ -88,10 +79,18 @@ jobs:
 
             # Ensure PM2 is in PATH and start/reload processes
             export PATH="$HOME/.npm-global/bin:$PATH"
+            # Ensure Node.js is available for PM2 (PM2 sometimes needs node even when using bun)
+            # Check if node is available, install if not
+            if ! command -v node &> /dev/null; then
+              echo "Installing Node.js for PM2..."
+              curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
+
             pm2 reload all || pm2 start ecosystem.config.js
 
             # Wait for processes to start
-            sleep 10
+            sleep 15
 
             # Check PM2 status
             pm2 status

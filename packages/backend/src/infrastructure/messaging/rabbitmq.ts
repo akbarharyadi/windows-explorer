@@ -7,7 +7,7 @@ import { Exchanges, Queues, RoutingKeys } from '@window-explorer/shared'
 // Load environment variables from root .env
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-config({ path: join(__dirname, '../../../../../.env') })
+config({ path: join(__dirname, '.env') })
 
 const RABBITMQ_USER = process.env.RABBITMQ_USER || 'window-explorer'
 const RABBITMQ_PASSWORD = process.env.RABBITMQ_PASSWORD || 'window-explorer_password'

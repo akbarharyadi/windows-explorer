@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url'
 // Load environment variables from root .env
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-config({ path: join(__dirname, '../../../../../.env') })
+config({ path: join(__dirname, '.env') })
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
 

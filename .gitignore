@@ -37,3 +37,5 @@ coverage/
 
 plan/*
 packages/backend/uploads/*
+CICD.md
+DEPLOYMENT.md

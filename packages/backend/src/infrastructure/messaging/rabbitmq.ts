@@ -9,7 +9,13 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 config({ path: join(__dirname, '../../../../../.env') })
 
-const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://localhost:5672'
+const RABBITMQ_USER = process.env.RABBITMQ_USER || 'window-explorer'
+const RABBITMQ_PASSWORD = process.env.RABBITMQ_PASSWORD || 'window-explorer_password'
+const RABBITMQ_HOST = process.env.RABBITMQ_HOST || 'localhost'
+const RABBITMQ_PORT = process.env.RABBITMQ_PORT || '5672'
+const RABBITMQ_URL =
+  process.env.RABBITMQ_URL ||
+  `amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@${RABBITMQ_HOST}:${RABBITMQ_PORT}`
 
 /**
  * RabbitMQ exchange and queue configuration

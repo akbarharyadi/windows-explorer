@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
@@ -11,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-window-explorer_password}
       POSTGRES_DB: ${POSTGRES_DB:-window-explorer_db}
     ports:
-      - '${POSTGRES_PORT:-5432}:5432}'
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -48,8 +46,8 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-window-explorer}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-window-explorer_password}
     ports:
-      - '${RABBITMQ_PORT:-5672}:5672}'
-      - '${RABBITMQ_MANAGEMENT_PORT:-15672}:15672}'
+      - '${RABBITMQ_PORT:-5672}:5672'
+      - '${RABBITMQ_MANAGEMENT_PORT:-15672}:15672'
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -74,7 +72,7 @@ services:
       PORT: 3000
       NODE_ENV: production
     ports:
-      - '${BACKEND_PORT:-3000}:3000}'
+      - '${BACKEND_PORT:-3000}:3000'
     depends_on:
       postgres:
         condition: service_healthy

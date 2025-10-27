@@ -182,3 +182,85 @@ export const fileRoutes = new Elysia({ prefix: '/api/v1/files' })
       },
     },
   )
+
+  // Upload file
+  .post(
+    '/upload',
+    async ({ body }) => {
+      const { file, folderId } = body
+
+      // Upload file (saves to disk and creates database record)
+      const fileRecord = await fileService.uploadFile(file, folderId)
+
+      return {
+        success: true,
+        data: fileRecord,
+        message: 'File uploaded successfully',
+      }
+    },
+    {
+      body: t.Object({
+        file: t.File({
+          description: 'File to upload',
+        }),
+        folderId: t.String({
+          description: 'Parent folder UUID',
+        }),
+      }),
+      detail: {
+        summary: 'Upload file',
+        description: 'Uploads a file to a specific folder and stores it on disk',
+        tags: ['Files'],
+      },
+    },
+  )
+
+  // Preview file (for displaying in browser)
+  .get(
+    '/:id/preview',
+    async ({ params, set }) => {
+      const { buffer, file } = await fileService.getFileContent(params.id)
+
+      // Set response headers for preview
+      set.headers['Content-Type'] = file.mimeType || 'application/octet-stream'
+      set.headers['Content-Disposition'] = `inline; filename="${file.name}"`
+      set.headers['Content-Length'] = buffer.length.toString()
+
+      return new Response(buffer)
+    },
+    {
+      params: t.Object({
+        id: t.String({ description: 'File UUID' }),
+      }),
+      detail: {
+        summary: 'Preview file',
+        description: 'Returns file content for preview in browser',
+        tags: ['Files'],
+      },
+    },
+  )
+
+  // Download file
+  .get(
+    '/:id/download',
+    async ({ params, set }) => {
+      const { buffer, file } = await fileService.getFileContent(params.id)
+
+      // Set response headers
+      set.headers['Content-Type'] = file.mimeType || 'application/octet-stream'
+      set.headers['Content-Disposition'] = `attachment; filename="${file.name}"`
+      set.headers['Content-Length'] = buffer.length.toString()
+
+      return new Response(buffer)
+    },
+    {
+      params: t.Object({
+        id: t.String({ description: 'File UUID' }),
+      }),
+      detail: {
+        summary: 'Download file',
+        description: 'Downloads the file content',
+        tags: ['Files'],
+      },
+    },
+  )

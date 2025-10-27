@@ -3,44 +3,42 @@ FROM oven/bun:1.2-alpine AS build
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json bun.lock ./
-COPY packages/shared/package.json ./packages/shared/package.json
-COPY packages/frontend/package.json ./packages/frontend/package.json
+# Install system dependencies
+RUN apk add --no-cache git
 
-# Install all dependencies
-RUN bun install
+# Copy all packages first (monorepo structure)
+COPY . .
 
-# Copy source code
-COPY packages/shared ./packages/shared
-COPY packages/frontend/src ./packages/frontend/src
-COPY packages/frontend/index.html ./packages/frontend/index.html
-COPY packages/frontend/vite.config.ts ./packages/frontend/vite.config.ts
-COPY packages/frontend/tsconfig.json ./packages/frontend/tsconfig.json
+# Install dependencies for all packages
+WORKDIR /app
+RUN bun install --frozen-lockfile
 
 # Build shared package
 WORKDIR /app/packages/shared
 RUN bun run build
 
-# Build frontend
+# Build frontend package
 WORKDIR /app/packages/frontend
-RUN bunx vite build
+RUN bun run build
 
-# Production stage
+# Production stage with Nginx
 FROM nginx:alpine
 
-# Copy built static files
-COPY --from=build /app/packages/frontend/dist /usr/share/nginx/html
-
-# Copy nginx configuration
+# Copy custom nginx config
 COPY packages/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy built files
+COPY --from=build /app/packages/frontend/dist /usr/share/nginx/html
 
 # Expose port
 EXPOSE 80
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost/health.html || exit 1
 
-# Start nginx
+# Create health check file
+RUN echo "OK" > /usr/share/nginx/html/health.html
+
+# Start Nginx
 CMD ["nginx", "-g", "daemon off;"]

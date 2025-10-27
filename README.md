@@ -8,7 +8,7 @@ This project uses a **monorepo** structure with the following packages:
 
 - **`packages/backend`** - Backend API service (Elysia + Bun)
 - **`packages/worker`** - Background worker service for async processing
-- **`packages/frontend`** - Frontend application (Vue 3)
+- **`packages/frontend`** - Frontend application (Vue 3) with file preview and management
 - **`packages/shared`** - Shared types and utilities
 
 ## 🛠️ Tech Stack
@@ -244,8 +244,28 @@ window-explorer/
 │   │   └── README.md
 │   ├── worker/               # Background worker service (TODO)
 │   │   └── src/
-│   ├── frontend/             # Frontend application (TODO)
-│   │   └── src/
+│   ├── frontend/             # Frontend application (Vue 3) ✅
+│   │   ├── src/
+│   │   │   ├── components/           # Vue components
+│   │   │   │   ├── FolderTree.vue    # Folder tree view
+│   │   │   │   ├── FolderList.vue    # File and folder list view
+│   │   │   │   ├── FilePreview.vue   # File preview modal
+│   │   │   │   ├── FileUpload.vue    # File upload component
+│   │   │   │   ├── SearchBar.vue     # Search functionality
+│   │   │   │   ├── ContextMenu.vue   # Context menu component
+│   │   │   │   └── CreateFolderModal.vue  # Folder creation modal
+│   │   │   ├── composables/          # Vue composables
+│   │   │   │   ├── useFolders.ts     # Folder management logic
+│   │   │   │   ├── useTreeState.ts   # Tree expansion state
+│   │   │   │   ├── useSearch.ts      # Search functionality
+│   │   │   │   ├── useDragAndDrop.ts # Drag and drop operations
+│   │   │   │   └── useFileUpload.ts  # File upload management
+│   │   │   ├── services/             # API service
+│   │   │   │   └── api.ts            # API client
+│   │   │   ├── types/                # TypeScript definitions
+│   │   │   │   └── index.ts          # Type definitions
+│   │   │   ├── App.vue               # Main application component
+│   │   │   └── main.ts               # Entry point
 │   └── shared/               # Shared types and utilities ✅
 │       ├── src/
 │       │   ├── events.ts            # Event type definitions
@@ -326,7 +346,7 @@ Detailed implementation plans are available in the [`plan/`](./plan/) directory:
 - [Step 02.5: Redis & RabbitMQ Setup](./plan/02.5-redis-rabbitmq-setup.md) ✅ **COMPLETED**
 - [Step 03: Backend API](./plan/03-backend-api.md) ✅ **COMPLETED**
 - [Step 03.5: Worker Microservice](./plan/03.5-worker-microservice.md) ✅ **COMPLETED**
-- [Step 04: Frontend App](./plan/04-frontend-app.md)
+- [Step 04: Frontend App](./plan/04-frontend-app.md) ✅ **COMPLETED**
 - [Step 05: Docker Setup](./plan/05-docker-setup.md)
 - [Step 06: Testing & Deployment](./plan/06-testing-deployment.md)
 
@@ -462,15 +482,28 @@ This project is private and proprietary.
   - ✅ Graceful shutdown and error handling
   - ✅ Docker configuration for deployment
 
-**Latest Implementation (Step 03 - Backend API):**
+- **Frontend Package**: Complete user interface with file management capabilities
+  - ✅ Folder tree view with expand/collapse functionality
+  - ✅ File list with preview and download capabilities
+  - ✅ Context menu with folder/file operations
+  - ✅ Drag and drop for moving items
+  - ✅ Search functionality across folders and files
+  - ✅ File upload with progress tracking
+  - ✅ File preview modal for supported formats (PDF, images, text, video, audio)
+  - ✅ Direct download for unsupported file types
+  - ✅ Comprehensive inline documentation for all components
+  - ✅ Full TypeScript support with type safety
+  - ✅ Responsive design and modern UI
 
-- **Services**: FolderService & FileService with integrated cache and event publishing
-- **API Endpoints**: 19 complete endpoints for folders, files, and search functionality
-- **Middlewares**: Error handler and CORS middlewares
-- **Server**: Complete Elysia server with API documentation
-- **Testing**: 58 unit tests for services, 102 tests total passing (229 assertions)
+**Latest Implementation (Step 04 - Frontend App):**
 
-**Infrastructure & Worker Integration (Step 02.5 & 03.5):**
+- **Components**: Complete Vue 3 component architecture (FolderTree, FolderList, FilePreview, FileUpload, etc.)
+- **File Operations**: Preview for supported formats + download for others
+- **User Interface**: Tree view, file list, context menus, drag and drop
+- **Technical Implementation**: TypeScript, composables, responsive design
+- **Documentation**: Comprehensive inline documentation for all frontend code
+
+**Backend & Infrastructure Integration (Steps 02.5, 03 & 03.5):**
 
 - **Application Ports**: CachePort and EventPublisherPort interfaces
 - **Redis Infrastructure**:
@@ -486,8 +519,70 @@ This project is private and proprietary.
   - Event consumption and processing capabilities
   - Cache management and search indexing
   - Docker containerization
+- **API Development**:
+  - 19 complete endpoints for folders, files, and search functionality
+  - Full CRUD operations with caching and event publishing
+  - 102 tests passing (229 assertions) + 60 tests in shared package
 
-- **File/Project Statistics**: 23 files created, 4 modified, 3,550 lines added in Steps 02.5 & 03; additional files in Step 03.5
+- **File/Project Statistics**:
+  - Backend: 23 files created, 4 modified, 3,550 lines added in Steps 02.5 & 03
+  - Worker: Additional files created in Step 03.5
+  - Frontend: 38 files created in Step 04 (components, composables, services, types)
 - **Testing**: All lint checks passed, all CI checks passed (build + test)
 
-**Next Step**: Implement [Step 04 - Frontend App](./plan/04-frontend-app.md)
+---
+
+## 🌐 Frontend Features
+
+The frontend application now includes the following features:
+
+### File Management
+
+- **Tree View**: Hierarchical folder structure with expand/collapse functionality
+- **File List**: Display of files in each folder with size information
+- **Context Menu**: Right-click context menu with options for folders and files
+- **Drag and Drop**: Move folders and files between locations
+
+### File Preview & Download
+
+- **Preview Modal**: Popup modal for previewing supported file types
+- **Supported Formats**: PDF, images (JPG, PNG, GIF, etc.), text files (TXT, MD, JSON, etc.), videos, and audio files
+- **Download Fallback**: Direct download for unsupported file types
+- **Progress Tracking**: File upload progress indicators
+
+### Search & Navigation
+
+- **Global Search**: Search across all folders and files
+- **Folder Creation**: Create new folders in any location
+- **File Upload**: Drag and drop or browse to upload files
+
+### Technical Implementation
+
+- **Vue 3 Composition API**: Modern component architecture
+- **Type Safety**: Full TypeScript support with comprehensive type definitions
+- **Responsive Design**: Works on different screen sizes
+- **Component Architecture**: Modular, reusable components
+
+## 🏗️ Backend API
+
+The backend API provides the following endpoints:
+
+### Folder Management
+
+- `GET /api/v1/folders/tree` - Retrieve complete folder tree
+- `GET /api/v1/folders/{id}/children` - Get subfolders and files in a folder
+- `POST /api/v1/folders` - Create new folder
+- `PATCH /api/v1/folders/{id}/move` - Move folder to new location
+- `DELETE /api/v1/folders/{id}` - Delete folder
+
+### File Management
+
+- `GET /api/v1/files/{id}/preview` - Preview file content (for supported types)
+- `GET /api/v1/files/{id}/download` - Download file
+- `POST /api/v1/files/upload` - Upload file to a folder
+- `PATCH /api/v1/files/{id}/move` - Move file to new location
+- `DELETE /api/v1/files/{id}` - Delete file
+
+### Search
+
+- `GET /api/v1/search?q={query}` - Search across all folders and files

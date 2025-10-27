@@ -1,40 +1,35 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: window-explorer-postgres
-    restart: unless-stopped
+    container_name: window-explorer-postgres-prod
+    restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-window-explorer}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-window-explorer_password}
-      POSTGRES_DB: ${POSTGRES_DB:-window-explorer_db}
-    ports:
-      - '${POSTGRES_PORT:-5432}:5432}'
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./backups:/backups
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-window-explorer}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - window-explorer-network
 
-  # Backend API (Elysia + Bun)
   backend:
     build:
       context: .
       dockerfile: packages/backend/Dockerfile
-    container_name: window-explorer-backend
-    restart: unless-stopped
+    container_name: window-explorer-backend-prod
+    restart: always
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-window-explorer}:${POSTGRES_PASSWORD:-window-explorer_password}@postgres:5432/${POSTGRES_DB:-window-explorer_db}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       PORT: 3000
       NODE_ENV: production
-    ports:
-      - '${BACKEND_PORT:-3000}:3000}'
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,9 +45,17 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     networks:
       - window-explorer-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
     command: >
       sh -c "
         bunx prisma migrate deploy &&
@@ -60,15 +63,12 @@ services:
         bun run dist/index.js
       "
 
-  # Frontend (Vue 3 + Nginx)
   frontend:
     build:
       context: .
       dockerfile: packages/frontend/Dockerfile
-    container_name: window-explorer-frontend
-    restart: unless-stopped
-    ports:
-      - '${FRONTEND_PORT:-8080}:80}'
+    container_name: window-explorer-frontend-prod
+    restart: always
     depends_on:
       backend:
         condition: service_healthy
@@ -79,9 +79,33 @@ services:
       retries: 3
     networks:
       - window-explorer-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  nginx:
+    image: nginx:alpine
+    container_name: window-explorer-nginx-prod
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - window-explorer-network
 
 volumes:
-  postgres_data:
+  postgres_prod_data:
     driver: local
 
 networks:

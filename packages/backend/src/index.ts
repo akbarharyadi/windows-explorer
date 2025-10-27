@@ -5,6 +5,7 @@ import { corsMiddleware } from './presentation/middlewares/cors'
 import { folderRoutes } from './presentation/routes/folders'
 import { fileRoutes } from './presentation/routes/files'
 import { searchRoutes } from './presentation/routes/search'
+import { prisma } from './infrastructure/database/prisma'
 
 // Load environment variables
 config()
@@ -12,6 +13,17 @@ config()
 const PORT = process.env.PORT || 3000
 const API_VERSION = process.env.API_VERSION || 'v1'
 const NODE_ENV = process.env.NODE_ENV || 'development'
+
+// Test database connection on startup
+async function checkDatabase() {
+  try {
+    await prisma.$queryRaw`SELECT 1`
+    console.log('✅ Database connection successful')
+  } catch (error) {
+    console.error('❌ Database connection failed:', error)
+    process.exit(1)
+  }
+}
 
 /**
  * Window Explorer Backend API
@@ -40,19 +52,25 @@ const app = new Elysia()
   }))
 
   // Health check endpoint
-  .get('/health', () => ({
-    success: true,
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: NODE_ENV,
-    services: {
-      api: 'operational',
-      database: 'operational', // TODO: Add actual DB health check
-      redis: 'operational', // TODO: Add actual Redis health check
-      rabbitmq: 'operational', // TODO: Add actual RabbitMQ health check
-    },
-  }))
+  .get('/health', async () => {
+    try {
+      await prisma.$queryRaw`SELECT 1`
+      return {
+        success: true,
+        status: 'healthy',
+        database: 'connected',
+        timestamp: new Date().toISOString(),
+      }
+    } catch (error) {
+      console.error('Database health check failed:', error)
+      return {
+        success: false,
+        status: 'unhealthy',
+        database: 'disconnected',
+        timestamp: new Date().toISOString(),
+      }
+    }
+  })
 
   // API Routes
   .use(folderRoutes)
@@ -89,14 +107,19 @@ console.log(`   GET  /api/${API_VERSION}/search/folders?q=query - Search folders
 console.log(`   GET  /api/${API_VERSION}/search/files?q=query   - Search files`)
 console.log('\n✨ Server ready to accept connections\n')
 
+// Check database connection
+checkDatabase()
+
 // Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\n🛑 Shutting down gracefully...')
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, shutting down gracefully')
+  await prisma.$disconnect()
   process.exit(0)
 })
 
-process.on('SIGTERM', () => {
-  console.log('\n🛑 Shutting down gracefully...')
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, shutting down gracefully')
+  await prisma.$disconnect()
   process.exit(0)
 })
 

@@ -87,6 +87,25 @@ jobs:
             cd ../worker && bun run build
             cd ../..
 
+            # Verify built files exist before starting PM2
+            if [ ! -f "./packages/backend/dist/index.js" ]; then
+              echo "Error: Backend build file does not exist!"
+              ls -la ./packages/backend/
+              if [ -d "./packages/backend/dist" ]; then
+                ls -la ./packages/backend/dist/
+              fi
+              exit 1
+            fi
+
+            if [ ! -f "./packages/worker/dist/index.js" ]; then
+              echo "Error: Worker build file does not exist!"
+              ls -la ./packages/worker/
+              if [ -d "./packages/worker/dist" ]; then
+                ls -la ./packages/worker/dist/
+              fi
+              exit 1
+            fi
+
             # Ensure PM2 is in PATH and start/reload processes
             export PATH="$HOME/.npm-global/bin:$PATH"
             # Ensure Node.js is available for PM2 (PM2 sometimes needs node even when using bun)
@@ -97,7 +116,9 @@ jobs:
               sudo apt-get install -y nodejs
             fi
 
-            pm2 reload all || pm2 start ecosystem.config.js
+            # First stop any existing processes, then start new ones
+            pm2 delete all || echo "No existing processes to delete"
+            pm2 start ecosystem.config.js
 
             # Wait for processes to start
             sleep 15

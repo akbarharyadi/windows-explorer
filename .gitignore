@@ -39,3 +39,4 @@ plan/*
 packages/backend/uploads/*
 CICD.md
 DEPLOYMENT.md
+ASYNC_FEEDBACK_IMPLEMENTATION.md

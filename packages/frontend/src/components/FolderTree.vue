@@ -9,11 +9,33 @@
       </div>
     </div>
 
+    <!-- Pending events section (optimistic UI) -->
+    <div v-if="pendingEvents && pendingEvents.size > 0" class="pending-events">
+      <div class="pending-events-header">
+        <span>Processing...</span>
+      </div>
+      <div
+        v-for="[eventId, event] in pendingEvents"
+        :key="eventId"
+        :class="['pending-event', `status-${event.status}`]"
+      >
+        <span class="pending-icon">
+          <span v-if="event.status === 'pending'">⏳</span>
+          <span v-else-if="event.status === 'processing'">🔄</span>
+          <span v-else-if="event.status === 'completed'">✅</span>
+          <span v-else-if="event.status === 'failed'">❌</span>
+        </span>
+        <span class="pending-name">{{ event.entityName }}</span>
+        <span class="pending-status">{{ event.status }}</span>
+        <span v-if="event.error" class="pending-error" :title="event.error">⚠️</span>
+      </div>
+    </div>
+
     <div v-if="loading" class="loading">
       Loading folders...
     </div>
 
-    <div v-else-if="folders.length === 0" class="empty">
+    <div v-else-if="folders.length === 0 && (!pendingEvents || pendingEvents.size === 0)" class="empty">
       No folders found
     </div>
 
@@ -45,6 +67,17 @@
 
 import TreeNode from './TreeNode.vue'
 import type { FolderNode } from '../types'
+import type { EventStatus } from '@window-explorer/shared'
+
+/** Pending event for optimistic UI */
+interface PendingEvent {
+  eventId: string
+  status: EventStatus
+  entityId?: string
+  error?: string
+  entityType?: string
+  entityName?: string
+}
 
 /** Props interface for FolderTree component */
 interface Props {
@@ -56,6 +89,8 @@ interface Props {
   selectedFolderId: string | null
   /** Whether the component is currently loading */
   loading?: boolean
+  /** Map of pending events for optimistic UI */
+  pendingEvents?: Map<string, PendingEvent>
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -161,5 +196,110 @@ function isSelected(folderId: string): boolean {
   padding: 16px;
   text-align: center;
   color: #666;
+}
+
+/* Pending events section */
+.pending-events {
+  border-bottom: 1px solid #ddd;
+  background: #f9f9f9;
+  padding: 8px;
+}
+
+.pending-events-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pending-event {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  margin: 4px 0;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: all 0.3s ease;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.pending-event.status-pending {
+  background: #fff3cd;
+  border-left: 3px solid #ffc107;
+}
+
+.pending-event.status-processing {
+  background: #d1ecf1;
+  border-left: 3px solid #17a2b8;
+}
+
+.pending-event.status-completed {
+  background: #d4edda;
+  border-left: 3px solid #28a745;
+  animation: fadeOut 1s ease 0.5s forwards;
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+}
+
+.pending-event.status-failed {
+  background: #f8d7da;
+  border-left: 3px solid #dc3545;
+}
+
+.pending-icon {
+  font-size: 16px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.status-processing .pending-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.pending-name {
+  flex: 1;
+  font-weight: 500;
+  color: #333;
+}
+
+.pending-status {
+  font-size: 11px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pending-error {
+  color: #dc3545;
+  font-size: 14px;
+  cursor: help;
 }
 </style>

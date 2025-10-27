@@ -1,5 +1,8 @@
 <template>
   <div class="app">
+    <!-- Notification Toast -->
+    <NotificationToast />
+
     <header class="app-header">
       <h1>📁 Windows Explorer</h1>
       <SearchBar
@@ -55,6 +58,7 @@
           :expanded-folders="expandedFolders"
           :selected-folder-id="selectedFolder?.id ?? null"
           :loading="loading"
+          :pending-events="pendingEvents"
           @toggle="toggleFolder"
           @select="handleSelectFolder"
           @expand-all="handleExpandAll"
@@ -113,11 +117,16 @@ import SearchBar from './components/SearchBar.vue'
 import ContextMenu from './components/ContextMenu.vue'
 import CreateFolderModal from './components/CreateFolderModal.vue'
 import FileUpload from './components/FileUpload.vue'
+import NotificationToast from './components/NotificationToast.vue'
 import { useFolders } from './composables/useFolders'
 import { useTreeState } from './composables/useTreeState'
 import { useSearch } from './composables/useSearch'
 import { useDragAndDrop } from './composables/useDragAndDrop'
+import { useEventStatus } from './composables/useEventStatus'
+import { useNotification } from './composables/useNotification'
 import type { FolderNode, FileItem, ContextMenuItem } from './types'
+import type { EventStatusUpdate } from '@window-explorer/shared'
+import { getStatusIcon, getStatusMessage } from '@window-explorer/shared'
 import { api } from './services/api'
 
 // Use folder composable for state and operations
@@ -142,6 +151,15 @@ const { searchQuery, searchResults, searching, searchError, performSearch, clear
 
 // Use drag and drop composable
 const { handleDrop } = useDragAndDrop()
+
+// Use event status composable for WebSocket tracking
+const { trackEvent, trackedEvents } = useEventStatus()
+
+// Use notification composable
+const { success, error: notifyError } = useNotification()
+
+// Pending events for optimistic UI (convert trackedEvents Map to reactive)
+const pendingEvents = computed(() => trackedEvents.value)
 
 // Context menu state
 const contextMenuVisible = ref(false)
@@ -291,16 +309,52 @@ async function handleMoveItem(id: string, type: 'folder' | 'file', targetId: str
 }
 
 /**
- * Handles the creation of a new folder
- * 
+ * Handles the creation of a new folder with real-time tracking
+ *
  * @param name - The name of the new folder
  */
 async function createNewFolder(name: string) {
   try {
     const parentId = selectedFolder.value?.id || null
-    await createFolder(name, parentId)
+
+    // Create folder - this now returns { folder, eventId }
+    const result = await createFolder(name, parentId)
+
+    if (!result) {
+      throw new Error('Failed to create folder')
+    }
+
+    const { folder, eventId } = result
+
+    // Track the event via WebSocket for real-time updates
+    trackEvent(eventId, 'folder', folder.name, (statusUpdate: EventStatusUpdate) => {
+      console.log(`Event ${eventId} status:`, statusUpdate.status)
+
+      // Handle status updates
+      if (statusUpdate.status === 'completed') {
+        // Show success notification
+        success(`Folder "${folder.name}" created successfully! ${getStatusIcon('completed')}`)
+
+        // Refresh folder tree to ensure everything is synced
+        setTimeout(() => {
+          loadFolderTree()
+        }, 500)
+      } else if (statusUpdate.status === 'failed') {
+        // Show error notification
+        const errorMsg = statusUpdate.error || 'Unknown error'
+        notifyError(`Failed to create folder "${folder.name}": ${errorMsg}`)
+      }
+    })
+
+    // Close modal
+    showCreateFolderModal.value = false
+
+    // Show initial pending notification
+    success(`Creating folder "${folder.name}"... ${getStatusIcon('pending')}`, 2000)
+
   } catch (err) {
     console.error('Error creating folder:', err)
+    notifyError(err instanceof Error ? err.message : 'Failed to create folder')
   }
 }
 

@@ -1,0 +1,59 @@
+name: Deploy to Ubuntu Server
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies and build
+        run: |
+          bun install
+          cd packages/frontend && bun run build
+          cd ../backend && bun run build
+          cd ../worker && bun run build
+          cd ../..
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            # Navigate to project in web directory
+            cd /var/www/window-explorer
+
+            # Pull latest code
+            git pull origin master
+
+            # Install dependencies
+            bun install
+
+            # Update and restart infrastructure services
+            sudo docker-compose -f docker-compose.infra.yml up -d
+
+            # Wait for infrastructure to be ready
+            sleep 15
+
+            # Build packages
+            cd packages/frontend && bun run build
+            cd ../backend && bun run build
+            cd ../worker && bun run build
+            cd ../..
+
+            # Reload PM2 processes
+            pm2 reload all
+
+            echo "Deployment completed!"

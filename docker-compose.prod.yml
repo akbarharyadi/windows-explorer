@@ -1,78 +1,128 @@
+version: '3.8'
+
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: window-explorer-postgres-prod
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_DB: ${DATABASE_NAME:-window-explorer_db}
+      POSTGRES_USER: ${POSTGRES_USER:-window-explorer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-window-explorer_password}
     volumes:
-      - postgres_prod_data:/var/lib/postgresql/data
-      - ./backups:/backups
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-window-explorer} -d ${DATABASE_NAME:-window-explorer_db}',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - window-explorer-network
 
   redis:
     image: redis:7-alpine
-    container_name: window-explorer-redis-prod
     restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --appendonly yes
     volumes:
-      - redis_prod_data:/data
+      - redis_data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - window-explorer-network
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.25'
-          memory: 128M
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    container_name: window-explorer-rabbitmq-prod
     restart: always
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-window-explorer}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-window-explorer_password}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-window-explorer_password}
+    ports:
+      - '5672:5672'
+      - '15672:15672'
     volumes:
-      - rabbitmq_prod_data:/var/lib/rabbitmq
+      - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ['CMD', 'rabbitmqctl', 'status']
+      test: rabbitmq-diagnostics -q ping
       interval: 30s
       timeout: 10s
       retries: 3
-    networks:
-      - window-explorer-network
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 512M
-        reservations:
-          cpus: '0.5'
-          memory: 256M
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://window-explorer:window-explorer_password@postgres:5432/window-explorer_db?schema=public}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://window-explorer:window-explorer_password@rabbitmq:5672}
+      - PORT=${BACKEND_PORT:-3000}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      - NODE_ENV=${NODE_ENV:-production}
+      - SERVICE_ROLE=api
+    ports:
+      - '${BACKEND_PORT:-3000}:3000'
+      - '${WEBSOCKET_PORT:-3001}:3001'
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://window-explorer:window-explorer_password@postgres:5432/window-explorer_db?schema=public}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://window-explorer:window-explorer_password@rabbitmq:5672}
+      - NODE_ENV=${NODE_ENV:-production}
+      - SERVICE_ROLE=worker
+    healthcheck:
+      test: ['CMD', 'pgrep', 'bun']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+    restart: always
+    ports:
+      - '${FRONTEND_PORT:-80:80}'
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
+      - VITE_WEBSOCKET_URL=${VITE_WEBSOCKET_URL:-http://localhost:3001}
 
 volumes:
-  postgres_prod_data:
-    driver: local
-  redis_prod_data:
-    driver: local
-  rabbitmq_prod_data:
-    driver: local
-
-networks:
-  window-explorer-network:
-    driver: bridge
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
